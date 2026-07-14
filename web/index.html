@@ -1285,6 +1285,21 @@ const IAP = { purchase(id){
   openBuy(id);   // web OR free build without keys -> demo purchase sheet
 }};
 
+// ---------- Interstitial ads (between games, with frequency capping) ----------
+// Google's policy: only at natural breaks, never mid-game, never for ad-free users.
+const INTERSTITIAL_EVERY = 3;        // show at most every Nth replay
+const INTERSTITIAL_GAP_MS = 90000;   // ...and never more often than this
+let _gamesSinceAd = 0, _lastInterstitial = 0;
+function maybeInterstitial(next){
+  const N = window.SnakeNative;
+  if(Ads.removed || !N || !N.isNative){ next(); return; }   // paid users & web: straight through
+  _gamesSinceAd++;
+  const now = performance.now();
+  if(_gamesSinceAd < INTERSTITIAL_EVERY || (now - _lastInterstitial) < INTERSTITIAL_GAP_MS){ next(); return; }
+  _gamesSinceAd = 0; _lastInterstitial = now;
+  Promise.resolve(N.showInterstitial()).then(next).catch(next);
+}
+
 function revive(){
   const mid=Math.floor(GRID/2);
   G.snake=[{x:mid,y:mid},{x:mid-1,y:mid},{x:mid-2,y:mid}];
@@ -1365,7 +1380,7 @@ window.addEventListener('keydown',e=>{
   Sound.init();
   if(CODEMAP[e.code]){ setDir(CODEMAP[e.code][0],CODEMAP[e.code][1]); e.preventDefault(); }
   else if(e.code==='KeyP'){ togglePause(); }
-  else if(e.code==='Space'){ if(G.over) startGame(G.mode); e.preventDefault(); }
+  else if(e.code==='Space'){ if(G.over) maybeInterstitial(()=>startGame(G.mode)); e.preventDefault(); }
 });
 let touchStart=null;
 canvas.addEventListener('touchstart',e=>{ Sound.init(); touchStart=e.changedTouches[0]; },{passive:true});
@@ -1396,9 +1411,9 @@ function togglePause(){
 document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ Sound.init(); startGame(b.dataset.mode); });
 document.getElementById('btnPause').onclick=togglePause;
 document.getElementById('btnResume').onclick=()=>{ G.paused=false; hide('ovPause'); Music.start(); };
-document.getElementById('btnRestart').onclick=()=>startGame(G.mode);
+document.getElementById('btnRestart').onclick=()=>maybeInterstitial(()=>startGame(G.mode));
 document.getElementById('btnMenu').onclick=toMenu;
-document.getElementById('btnAgain').onclick=()=>startGame(G.mode);
+document.getElementById('btnAgain').onclick=()=>maybeInterstitial(()=>startGame(G.mode));
 document.getElementById('btnOverMenu').onclick=toMenu;
 // Open panels from either the in-game toolbar OR the main menu.
 function openShop(){ renderShop(); if(G.running&&!G.over)G.paused=true; show('ovShop'); }
