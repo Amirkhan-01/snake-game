@@ -23,8 +23,7 @@ const CONFIG = {
   // it must belong to the same publisher as the ad units below.
   admobAppId: 'ca-app-pub-7978127632650379~7654152943',            // (manifest is the one that counts)
   rewardedAdUnitId: 'ca-app-pub-7978127632650379/5662982647',      // real rewarded unit
-  // Interstitials are not used by the game yet; still Google's TEST id.
-  interstitialAdUnitId: 'ca-app-pub-3940256099942544/1033173712',
+  interstitialAdUnitId: 'ca-app-pub-7978127632650379/9077402484',  // real interstitial unit
   // Map the game's internal product ids -> the product ids you create in the store.
   PRODUCTS: {
     premium:     'premium',
