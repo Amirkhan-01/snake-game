@@ -544,6 +544,7 @@ const STRINGS = {
     insStep3:'Done — it opens like a real app and works offline',
     insHint:'Opened from Telegram/Instagram? Tap “Open in Safari” first — in-app browsers can’t install.',
     insOk:'Got it',
+    storeUnavailable:'Purchases are not available yet',
     intro1:'Eat food to grow. Chain quick bites for a <b>combo</b> bonus.',
     intro2:'Grab power-ups: 🛡 shield, <b>2×</b> score, 🧲 magnet.',
     intro3:'Move by <b>swipe</b>, <b>arrows</b> or <b>WASD</b>. Avoid walls &amp; yourself.',
@@ -585,6 +586,7 @@ const STRINGS = {
     insStep3:'Готово — откроется как приложение и работает офлайн',
     insHint:'Открыл из Telegram/Instagram? Сначала нажми «Открыть в Safari» — из встроенного браузера установка невозможна.',
     insOk:'Понятно',
+    storeUnavailable:'Покупки пока недоступны',
     intro1:'Ешь еду, чтобы расти. Быстрые укусы подряд дают <b>комбо</b>-бонус.',
     intro2:'Собирай усилители: 🛡 щит, <b>2×</b> очки, 🧲 магнит.',
     intro3:'Управление: <b>свайп</b>, <b>стрелки</b> или <b>WASD</b>. Не врезайся в стены и себя.',
@@ -1272,7 +1274,12 @@ function grantPurchase(id){
 const IAP = { purchase(id){
   const N=window.SnakeNative;
   if(N && N.isNative && N.storeReady){    // real store billing on device (keys configured)
-    N.purchase(id).then(r=>{ if(r && r.ok) grantPurchase(id); else if(r && r.reason==='not-configured') openBuy(id); });
+    N.purchase(id).then(r=>{
+      if(r && r.ok) grantPurchase(id);
+      else if(r && r.reason==='not-configured') openBuy(id);   // no key -> demo sheet
+      else if(r && r.reason==='cancelled') {}                   // user cancelled: stay quiet
+      else notify(t('storeUnavailable'), COL.yellow);           // products not set up yet
+    });
     return;
   }
   openBuy(id);   // web OR free build without keys -> demo purchase sheet

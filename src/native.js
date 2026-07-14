@@ -18,7 +18,7 @@ const CONFIG = {
   // API Keys) AND a finished Play Store config (service account JSON, which needs a
   // Google Play Console account). Until a goog_ key is set, the game falls back to
   // its built-in demo purchase flow — see STORE_READY below.
-  revenueCatApiKey: 'test_bHnpRwaIWsuTQSsKaoPfRFLpnzO',   // RevenueCat TEST-store key
+  revenueCatApiKey: 'goog_jDytaOAoPPDqaJkoTgDOTQIlrEw',   // RevenueCat public Android SDK key
   // AdMob. NOTE: the App ID in android/app/src/main/AndroidManifest.xml must match
   // the same publisher, otherwise ads will not serve.
   rewardedAdUnitId: 'ca-app-pub-7978127632650379/5662982647',      // real rewarded unit
