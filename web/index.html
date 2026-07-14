@@ -42,7 +42,9 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     overflow:hidden;user-select:none;touch-action:none;
   }
-  #app{position:relative;width:100vw;height:100vh;display:flex;flex-direction:column}
+  /* iOS Safari: 100vh ignores the browser bars, so the top/bottom of the UI ends up
+     hidden behind them. 100dvh follows the real visible area (vh kept as fallback). */
+  #app{position:relative;width:100%;height:100vh;height:100dvh;display:flex;flex-direction:column}
   /* HUD */
   /* viewport-fit=cover puts content under the notch/status bar -> respect safe areas */
   #hud{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;
@@ -79,7 +81,7 @@
   .overlay{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
            background:rgba(6,8,20,.72);backdrop-filter:blur(4px);padding:16px}
   .overlay.show{display:flex}
-  .card{width:min(440px,94vw);max-height:92vh;overflow:auto;background:var(--panel);
+  .card{width:min(440px,94vw);max-height:92vh;max-height:92dvh;overflow:auto;background:var(--panel);
         border:1px solid var(--panel-border);border-radius:20px;padding:22px;
         box-shadow:0 20px 60px rgba(0,0,0,.5)}
   .card h1{margin:0 0 4px;font-size:28px;text-align:center}
