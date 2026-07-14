@@ -44,8 +44,11 @@
   }
   #app{position:relative;width:100vw;height:100vh;display:flex;flex-direction:column}
   /* HUD */
+  /* viewport-fit=cover puts content under the notch/status bar -> respect safe areas */
   #hud{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;
-       padding:10px 14px;pointer-events:none;font-weight:600}
+       padding:calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right))
+               10px calc(14px + env(safe-area-inset-left));
+       pointer-events:none;font-weight:600}
   #hud .col{display:flex;flex-direction:column;gap:2px}
   #hud .right{text-align:right}
   #hud .big{font-size:22px}
@@ -59,7 +62,10 @@
          box-shadow:0 10px 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.05)}
   /* Bottom controls */
   #toolbar{position:absolute;bottom:0;left:0;right:0;z-index:5;display:flex;gap:8px;
-           justify-content:center;padding:10px;pointer-events:none}
+           justify-content:center;
+           padding:10px calc(10px + env(safe-area-inset-right))
+                   calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+           pointer-events:none}
   #toolbar button{pointer-events:auto}
   button{
     font:inherit;font-weight:700;color:var(--text);cursor:pointer;
@@ -123,13 +129,14 @@
     font-size:12px;letter-spacing:1px}
   .tag{font-size:12px;color:var(--green);font-weight:700}
   .center{text-align:center}
-  #notes{position:absolute;top:88px;left:0;right:0;z-index:8;display:flex;flex-direction:column;
-          align-items:center;gap:6px;pointer-events:none}
+  /* z-index above .overlay(20) so purchases/rewards give feedback inside the store too */
+  #notes{position:absolute;top:calc(88px + env(safe-area-inset-top));left:0;right:0;z-index:30;
+          display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
   .note{background:rgba(0,0,0,.6);border:1px solid var(--panel-border);border-radius:20px;
         padding:6px 14px;font-size:13px;font-weight:700;animation:pop .3s}
   @keyframes pop{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
-  #hint{position:absolute;left:0;right:0;bottom:64px;text-align:center;color:var(--muted);
-        font-size:13px;z-index:4;pointer-events:none}
+  #hint{position:absolute;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));
+        text-align:center;color:var(--muted);font-size:13px;z-index:4;pointer-events:none}
   .go-big{font-size:34px;font-weight:900;text-align:center;margin:0}
   .go-new{color:var(--yellow);text-align:center;font-weight:800;margin:6px 0}
   .stat{display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px solid rgba(255,255,255,.06)}
@@ -782,8 +789,10 @@ function genObstacles(){
 }
 
 // ---------- Notifications ----------
+const MAX_NOTES = 3;              // never flood the screen
 function notify(text, color){
   G.notes.push({text,color:color||COL.yellow,end:performance.now()+2600});
+  if(G.notes.length>MAX_NOTES) G.notes.splice(0, G.notes.length-MAX_NOTES);
   renderNotes();
 }
 function renderNotes(){
@@ -793,6 +802,13 @@ function renderNotes(){
     const d=document.createElement('div'); d.className='note';
     d.textContent=n.text; d.style.color=n.color; el.appendChild(d);
   }
+}
+// Notifications must expire even when no game is running (menu, store, paused),
+// otherwise they pile up and all appear at once when a game starts.
+function tickNotes(){
+  const now=performance.now(), before=G.notes.length;
+  G.notes=G.notes.filter(n=>n.end>now);
+  if(G.notes.length!==before) renderNotes();
 }
 
 // ---------- Achievements / daily ----------
@@ -969,11 +985,6 @@ function update(dt){
   // particles
   for(const p of G.particles){ p.x+=p.vx; p.y+=p.vy; p.vx*=.96; p.vy*=.96; p.life-=dt/700; p.size*=.985; }
   G.particles=G.particles.filter(p=>p.life>0);
-  // notes expiry
-  const now=performance.now();
-  const before=G.notes.length;
-  G.notes=G.notes.filter(n=>n.end>now);
-  if(G.notes.length!==before) renderNotes();
 }
 
 // ---------- Rendering ----------
@@ -1207,6 +1218,7 @@ function frame(ts){
   document.getElementById('slowmo').textContent = performance.now()<G.slowUntil?'SLOW-MO':'';
   document.getElementById('timer').textContent = (G.mode==='timeattack'&&G.running&&!G.over) ? ('⏱ '+Math.ceil(G.timeLeft/1000)+'s') : '';
   updateEffects();
+  tickNotes();                 // runs in menus/store too, so they never pile up
   requestAnimationFrame(frame);
 }
 
