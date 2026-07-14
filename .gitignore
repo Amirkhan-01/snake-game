@@ -19,3 +19,7 @@
 
 # python
 __pycache__/
+
+# IDE
+.idea/
+.vscode/
