@@ -19,10 +19,12 @@ const CONFIG = {
   // Google Play Console account). Until a goog_ key is set, the game falls back to
   // its built-in demo purchase flow — see STORE_READY below.
   revenueCatApiKey: 'goog_jDytaOAoPPDqaJkoTgDOTQIlrEw',   // RevenueCat public Android SDK key
-  // AdMob. NOTE: the App ID in android/app/src/main/AndroidManifest.xml must match
-  // the same publisher, otherwise ads will not serve.
+  // AdMob. The App ID also lives in android/app/src/main/AndroidManifest.xml —
+  // it must belong to the same publisher as the ad units below.
+  admobAppId: 'ca-app-pub-7978127632650379~7654152943',            // (manifest is the one that counts)
   rewardedAdUnitId: 'ca-app-pub-7978127632650379/5662982647',      // real rewarded unit
-  interstitialAdUnitId: 'ca-app-pub-3940256099942544/1033173712',  // <-- Google TEST id
+  // Interstitials are not used by the game yet; still Google's TEST id.
+  interstitialAdUnitId: 'ca-app-pub-3940256099942544/1033173712',
   // Map the game's internal product ids -> the product ids you create in the store.
   PRODUCTS: {
     premium:     'premium',
