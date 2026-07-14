@@ -1,0 +1,18 @@
+{
+  "appId": "com.snakepremium.game",
+  "appName": "Snake Premium",
+  "webDir": "web",
+  "backgroundColor": "#12162a",
+  "loggingBehavior": "none",
+  "android": {
+    "backgroundColor": "#12162a"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 900,
+      "backgroundColor": "#12162a",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false
+    }
+  }
+}

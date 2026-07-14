@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import pygame; print\\('pygame', pygame.version.ver\\)\")",
+      "Bash(python -c \"import numpy; print\\('numpy ok'\\)\")",
+      "Bash(python -m py_compile snake.py)",
+      "Bash(mkdir -p C:/Users/HP/AppData/Local/Temp/claude/C--Users-HP-CascadeProjects-snake-game/cc112d1c-c29f-4db7-b2f7-a54f2966ff44/scratchpad/smoke)",
+      "Bash(cp C:/Users/HP/CascadeProjects/snake-game/snake.py C:/Users/HP/AppData/Local/Temp/claude/C--Users-HP-CascadeProjects-snake-game/cc112d1c-c29f-4db7-b2f7-a54f2966ff44/scratchpad/smoke/snake.py)",
+      "Bash(python test.py)",
+      "Bash(python test_sound.py)",
+      "Bash(python test_sound2.py)",
+      "Bash(python test_sound3.py)",
+      "Bash(SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python -c ' *)",
+      "Bash(python -m pip install --user --quiet pygbag)",
+      "Bash(python -m pygbag --version)",
+      "Bash(rm -rf C:/Users/HP/AppData/Local/Temp/claude/C--Users-HP-CascadeProjects-snake-game/cc112d1c-c29f-4db7-b2f7-a54f2966ff44/scratchpad/webbuild)",
+      "Bash(mkdir -p C:/Users/HP/AppData/Local/Temp/claude/C--Users-HP-CascadeProjects-snake-game/cc112d1c-c29f-4db7-b2f7-a54f2966ff44/scratchpad/webbuild)",
+      "Bash(cp C:/Users/HP/CascadeProjects/snake-game/snake.py C:/Users/HP/AppData/Local/Temp/claude/C--Users-HP-CascadeProjects-snake-game/cc112d1c-c29f-4db7-b2f7-a54f2966ff44/scratchpad/webbuild/main.py)",
+      "Bash(timeout 300 python -m pygbag --build main.py)",
+      "Bash(python -m pygbag --port 8000 main.py)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:8000/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/)",
+      "Bash(python -m pygbag --help)",
+      "Bash(python -m pygbag --help .)",
+      "Bash(python -m pygbag --help snakegame)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8010/)",
+      "Bash(python serve.py)",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(python -m PyInstaller --version)",
+      "Bash(timeout 400 python -m PyInstaller --onefile --windowed --name SnakeGame --distpath C:/Users/HP/CascadeProjects/snake-game/dist --workpath C:/Users/HP/AppData/Local/Temp/claude/C--Users-HP-CascadeProjects-snake-game/cc112d1c-c29f-4db7-b2f7-a54f2966ff44/scratchpad/pyi_build --specpath C:/Users/HP/AppData/Local/Temp/claude/C--Users-HP-CascadeProjects-snake-game/cc112d1c-c29f-4db7-b2f7-a54f2966ff44/scratchpad/pyi_build snake.py)",
+      "Bash(WEB=\"C:/Users/HP/CascadeProjects/snake-game/web\" *)"
+    ]
+  }
+}

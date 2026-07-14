@@ -1,0 +1,1529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#12162a">
+<title>Snake — Premium</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Snake">
+<meta name="description" content="Premium Snake game with skins, combos, power-ups, daily challenges and achievements.">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<!-- Social sharing preview -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Snake — Premium Edition">
+<meta property="og:description" content="Skins, power-ups, combos, daily challenges and a leaderboard. Play free in your browser.">
+<meta property="og:image" content="og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Snake — Premium Edition">
+<meta name="twitter:description" content="Skins, power-ups, combos, daily challenges. Play free in your browser.">
+<meta name="twitter:image" content="og-image.png">
+
+<style>
+  :root{
+    --bg-top:#22284a; --bg-bottom:#12162a;
+    --panel:rgba(20,24,44,.92); --panel-border:rgba(255,255,255,.10);
+    --text:#eef1ff; --muted:#9aa3c7;
+    --green:#2ecc71; --yellow:#f1c40f; --blue:#3498db; --orange:#e67e22;
+    --red:#e74c3c; --cyan:#1abc9c; --purple:#9b59b6;
+    --accent:#5b8cff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    color:var(--text);
+    background:linear-gradient(160deg,var(--bg-top),var(--bg-bottom));
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    overflow:hidden;user-select:none;touch-action:none;
+  }
+  #app{position:relative;width:100vw;height:100vh;display:flex;flex-direction:column}
+  /* HUD */
+  #hud{position:absolute;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;
+       padding:10px 14px;pointer-events:none;font-weight:600}
+  #hud .col{display:flex;flex-direction:column;gap:2px}
+  #hud .right{text-align:right}
+  #hud .big{font-size:22px}
+  #score{font-size:26px;font-weight:800}
+  .muted{color:var(--muted);font-size:13px}
+  #combo{color:var(--orange)}
+  #daily{color:var(--orange);font-size:13px}
+  #coins{color:var(--yellow)}
+  /* Canvas */
+  #board{display:block;margin:auto;border-radius:16px;
+         box-shadow:0 10px 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.05)}
+  /* Bottom controls */
+  #toolbar{position:absolute;bottom:0;left:0;right:0;z-index:5;display:flex;gap:8px;
+           justify-content:center;padding:10px;pointer-events:none}
+  #toolbar button{pointer-events:auto}
+  button{
+    font:inherit;font-weight:700;color:var(--text);cursor:pointer;
+    background:rgba(255,255,255,.08);border:1px solid var(--panel-border);
+    border-radius:12px;padding:10px 16px;transition:transform .05s, background .15s}
+  button:hover{background:rgba(255,255,255,.16)}
+  button:active{transform:scale(.96)}
+  button.primary{background:linear-gradient(135deg,#5b8cff,#7b5bff);border:none}
+  button.small{padding:8px 12px;font-size:14px;border-radius:10px}
+  /* Overlays */
+  .overlay{position:absolute;inset:0;z-index:20;display:none;align-items:center;justify-content:center;
+           background:rgba(6,8,20,.72);backdrop-filter:blur(4px);padding:16px}
+  .overlay.show{display:flex}
+  .card{width:min(440px,94vw);max-height:92vh;overflow:auto;background:var(--panel);
+        border:1px solid var(--panel-border);border-radius:20px;padding:22px;
+        box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .card h1{margin:0 0 4px;font-size:28px;text-align:center}
+  .card h2{margin:0 0 14px;font-size:15px;font-weight:500;color:var(--muted);text-align:center}
+  .row{display:flex;gap:10px;margin-top:12px}
+  .row button{flex:1}
+  /* Main menu */
+  .menu-card{padding:26px 22px}
+  .brand{display:flex;align-items:center;gap:14px;justify-content:center}
+  .brand-logo{width:62px;height:62px;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+  .brand-title{font-size:40px;line-height:1;font-weight:900;letter-spacing:.5px}
+  .brand-sub{color:var(--muted);font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;margin-top:5px}
+  .menu-stats{display:flex;gap:10px;margin:18px 0 4px}
+  .mstat{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--panel-border);border-radius:14px;
+    padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:1px}
+  .mstat span{font-size:16px}
+  .mstat b{font-size:18px}
+  .mstat small{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+  .modebtn{display:flex;flex-direction:row;align-items:center;gap:14px;text-align:left;
+    padding:13px 14px;width:100%;margin-top:10px}
+  .mbadge{width:44px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;
+    font-size:22px;border-radius:13px;background:rgba(91,140,255,.28)}
+  .mtext{flex:1;display:flex;flex-direction:column;gap:2px}
+  .mtext b{font-size:17px}
+  .mtext small{font-weight:500;color:var(--muted)}
+  .modebtn.primary .mtext small{color:rgba(255,255,255,.9)}
+  .marrow{font-size:26px;opacity:.45;font-weight:400}
+  .menu-actions{display:flex;gap:8px;margin-top:16px}
+  .menu-actions button{flex:1;padding:11px 6px;font-size:14px;border-radius:12px}
+  .menu-hint{text-align:center;color:var(--muted);font-size:12px;margin-top:16px;letter-spacing:.3px}
+  .intro-row{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px;line-height:1.45}
+  .intro-row span{color:var(--text)}
+  .shop-item,.set-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;
+        background:rgba(255,255,255,.05);margin-top:8px}
+  .swatch{width:26px;height:26px;border-radius:8px;flex:none;box-shadow:inset 0 0 0 2px rgba(255,255,255,.25)}
+  .shop-item .name{flex:1;font-weight:700}
+  .shop-item .status{font-size:13px;color:var(--muted)}
+  .shop-item button{padding:7px 12px;font-size:13px;border-radius:9px}
+  .store-banner{background:linear-gradient(135deg,rgba(91,140,255,.28),rgba(155,89,182,.28));
+    border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:14px;margin-top:10px;
+    display:flex;flex-direction:column;gap:6px}
+  .store-banner.owned{background:rgba(46,204,113,.14)}
+  .store-banner .sb-title{font-weight:800;font-size:16px}
+  .store-banner .sb-desc{color:var(--muted);font-size:13px}
+  .store-banner button{align-self:flex-start;padding:8px 18px}
+  .store-section{font-weight:800;margin:18px 0 2px;color:var(--muted);text-transform:uppercase;
+    font-size:12px;letter-spacing:1px}
+  .tag{font-size:12px;color:var(--green);font-weight:700}
+  .center{text-align:center}
+  #notes{position:absolute;top:88px;left:0;right:0;z-index:8;display:flex;flex-direction:column;
+          align-items:center;gap:6px;pointer-events:none}
+  .note{background:rgba(0,0,0,.6);border:1px solid var(--panel-border);border-radius:20px;
+        padding:6px 14px;font-size:13px;font-weight:700;animation:pop .3s}
+  @keyframes pop{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
+  #hint{position:absolute;left:0;right:0;bottom:64px;text-align:center;color:var(--muted);
+        font-size:13px;z-index:4;pointer-events:none}
+  .go-big{font-size:34px;font-weight:900;text-align:center;margin:0}
+  .go-new{color:var(--yellow);text-align:center;font-weight:800;margin:6px 0}
+  .stat{display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .lb{list-style:none;padding:0;margin:6px 0 0;counter-reset:rank}
+  .lb li{display:flex;justify-content:space-between;padding:8px 12px;margin-top:6px;border-radius:10px;
+    background:rgba(255,255,255,.05);font-weight:700;counter-increment:rank}
+  .lb li::before{content:"#" counter(rank);color:var(--muted);margin-right:auto;font-weight:600}
+  .lb li:nth-child(1){background:rgba(241,196,15,.14)}
+  .lb li:nth-child(1)::before{content:"🥇"}
+  .lb li:nth-child(2)::before{content:"🥈"}
+  .lb li:nth-child(3)::before{content:"🥉"}
+  .lb-empty{color:var(--muted);padding:8px 2px}
+
+  /* ---------- Visual polish (palette unchanged) ---------- */
+  #hud{display:grid;grid-template-columns:1fr 1fr;align-items:start;gap:10px}
+  #hud .col{background:rgba(10,13,26,.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    padding:7px 11px;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.3);
+    min-width:0;max-width:100%;overflow:hidden;justify-self:start}
+  #hud .col.right{justify-self:end;align-items:flex-end;text-align:right}
+  #score{font-size:21px}
+  #hud .muted{font-size:12px}
+  #coins{font-size:15px;white-space:nowrap}
+  #daily{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  #score{letter-spacing:.3px;text-shadow:0 2px 10px rgba(0,0,0,.4)}
+  .fxbadge{display:inline-block;margin:4px 0 0 4px;padding:2px 9px;font-size:12px;font-weight:800;
+    border:1.5px solid;border-radius:999px;background:rgba(0,0,0,.4)}
+  #toolbar{gap:10px}
+  #toolbar button{width:48px;height:48px;padding:0;font-size:19px;border-radius:15px;
+    background:rgba(22,26,48,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    box-shadow:0 4px 16px rgba(0,0,0,.35)}
+  #board{box-shadow:0 14px 50px rgba(0,0,0,.5), 0 0 0 1px rgba(91,140,255,.18),
+    inset 0 0 70px rgba(91,140,255,.06)}
+  button{box-shadow:0 3px 12px rgba(0,0,0,.25)}
+  button.primary{box-shadow:0 6px 22px rgba(91,140,255,.45)}
+  .overlay{animation:ovfade .22s ease}
+  @keyframes ovfade{from{opacity:0}to{opacity:1}}
+  .card{animation:cardin .3s cubic-bezier(.2,.9,.3,1.25);
+    background:linear-gradient(180deg,rgba(30,35,62,.95),rgba(18,22,42,.95))}
+  @keyframes cardin{from{opacity:0;transform:translateY(16px) scale(.95)}to{opacity:1;transform:none}}
+  .card h1{text-shadow:0 2px 16px rgba(91,140,255,.45)}
+  #ovMode .card h1{font-size:40px;letter-spacing:.5px}
+  .modebtn{transition:border-color .15s,transform .05s,background .15s}
+  .modebtn:hover{border-color:var(--accent)}
+  .swatch{box-shadow:inset 0 0 0 2px rgba(255,255,255,.25),0 2px 8px rgba(0,0,0,.4)}
+  .note{box-shadow:0 6px 20px rgba(0,0,0,.4)}
+  #slowmo{text-shadow:0 0 12px rgba(26,188,156,.7)}
+
+  /* ---------- Themed scrollbars ---------- */
+  *{scrollbar-width:thin;scrollbar-color:rgba(91,140,255,.55) transparent}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent;margin:6px 0}
+  ::-webkit-scrollbar-thumb{
+    background:linear-gradient(180deg,var(--accent),#7b5bff);
+    border-radius:999px;border:2px solid transparent;background-clip:padding-box}
+  ::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#7aa2ff,#9b7bff);background-clip:padding-box}
+  ::-webkit-scrollbar-button{display:none;width:0;height:0}
+  ::-webkit-scrollbar-corner{background:transparent}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <div class="col">
+      <div id="score">Score: 0</div>
+      <div class="muted" id="hi">High: 0</div>
+      <div class="muted" style="color:var(--blue)" id="level">Level: 1</div>
+      <div id="timer" style="color:var(--cyan);font-weight:800"></div>
+      <div id="combo"></div>
+    </div>
+    <div class="col right">
+      <div id="coins">🪙 0</div>
+      <div id="daily" class="muted"></div>
+      <div id="slowmo" style="color:var(--cyan);font-weight:800"></div>
+      <div id="fx"></div>
+    </div>
+  </div>
+
+  <div id="notes"></div>
+  <canvas id="board"></canvas>
+  <div id="hint"></div>
+
+  <div id="toolbar">
+    <button class="small" id="btnPause">⏸</button>
+    <button class="small" id="btnShop">🛍</button>
+    <button class="small" id="btnStats">📊</button>
+    <button class="small" id="btnSettings">⚙</button>
+  </div>
+
+  <!-- Mode selection -->
+  <div class="overlay show" id="ovMode">
+    <div class="card menu-card">
+      <div class="brand">
+        <svg class="brand-logo" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect width="48" height="48" rx="11" fill="#1b2140"/>
+          <rect x="11" y="27" width="8" height="8" rx="2.5" fill="#1e7a45"/>
+          <rect x="19" y="27" width="8" height="8" rx="2.5" fill="#25995a"/>
+          <rect x="27" y="27" width="8" height="8" rx="2.5" fill="#2ecc71"/>
+          <rect x="27" y="19" width="8" height="8" rx="2.5" fill="#2ecc71"/>
+          <rect x="19" y="19" width="8" height="8" rx="2.5" fill="#2ecc71"/>
+          <circle cx="22" cy="22.5" r="1.7" fill="#fff"/><circle cx="26" cy="22.5" r="1.7" fill="#fff"/>
+          <circle cx="22" cy="22.5" r=".85" fill="#111"/><circle cx="26" cy="22.5" r=".85" fill="#111"/>
+          <circle cx="14" cy="21" r="3.2" fill="#e74c3c"/><circle cx="13" cy="20" r="1" fill="#fff"/>
+        </svg>
+        <div>
+          <div class="brand-title">Snake</div>
+          <div class="brand-sub">Premium Edition</div>
+        </div>
+      </div>
+      <div class="menu-stats">
+        <div class="mstat"><span>🏆</span><b id="menuHigh">0</b><small>Best</small></div>
+        <div class="mstat"><span>🪙</span><b id="menuCoins">0</b><small>Coins</small></div>
+        <div class="mstat"><span>🔥</span><b id="menuStreak">0</b><small>Streak</small></div>
+      </div>
+      <button class="modebtn primary" data-mode="classic">
+        <span class="mbadge">🎮</span>
+        <span class="mtext"><b>Classic</b><small>No obstacles · walls wrap around</small></span>
+        <span class="marrow">›</span>
+      </button>
+      <button class="modebtn" data-mode="obstacles">
+        <span class="mbadge" style="background:rgba(230,126,34,.22)">🧱</span>
+        <span class="mtext"><b>Obstacles</b><small>Obstacles · walls are deadly</small></span>
+        <span class="marrow">›</span>
+      </button>
+      <button class="modebtn" data-mode="hardcore">
+        <span class="mbadge" style="background:rgba(231,76,60,.22)">🔥</span>
+        <span class="mtext"><b>Hardcore</b><small>Fast · walls kill · ×1.5 coins</small></span>
+        <span class="marrow">›</span>
+      </button>
+      <button class="modebtn" data-mode="timeattack">
+        <span class="mbadge" style="background:rgba(52,152,219,.22)">⏱</span>
+        <span class="mtext"><b>Time Attack</b><small>60 seconds · walls wrap · score rush</small></span>
+        <span class="marrow">›</span>
+      </button>
+      <div class="menu-actions">
+        <button id="menuShop">🛍 Shop</button>
+        <button id="menuStats">📊 Stats</button>
+        <button id="menuSettings">⚙ Settings</button>
+      </div>
+      <button id="btnInstall" class="primary" style="display:none;margin-top:10px;width:100%">📲 Install app</button>
+      <div class="menu-hint">Swipe · Arrows · WASD to move · <a id="menuAbout" style="color:var(--accent);cursor:pointer">About</a></div>
+    </div>
+  </div>
+
+  <!-- Pause -->
+  <div class="overlay" id="ovPause">
+    <div class="card center">
+      <h1>Paused</h1>
+      <div class="row"><button class="primary" id="btnResume">Resume</button></div>
+      <div class="row"><button id="btnRestart">Restart</button>
+        <button id="btnMenu">Main menu</button></div>
+    </div>
+  </div>
+
+  <!-- Game over -->
+  <div class="overlay" id="ovOver">
+    <div class="card">
+      <p class="go-big" style="color:var(--red)">Game Over</p>
+      <p class="go-new" id="goNew"></p>
+      <div class="stat"><span>Score</span><b id="goScore">0</b></div>
+      <div class="stat"><span>High score</span><b id="goHi">0</b></div>
+      <div class="stat"><span>Level reached</span><b id="goLevel">1</b></div>
+      <div class="row" id="rowRevive"><button class="primary" id="btnRevive" style="width:100%;background:linear-gradient(135deg,#2ecc71,#27ae60)">▶ Continue — watch ad</button></div>
+      <div class="row" id="rowX2"><button id="btnX2" style="width:100%">🪙 Double coins — watch ad</button></div>
+      <div class="row"><button class="primary" id="btnAgain">Play again</button>
+        <button id="btnOverMenu">Menu</button></div>
+      <div class="row"><button id="btnShare" style="width:100%">📤 Share score</button></div>
+    </div>
+  </div>
+
+  <!-- Store -->
+  <div class="overlay" id="ovShop">
+    <div class="card">
+      <h1>🛍 Store</h1>
+      <h2 id="shopCoins">🪙 0 coins</h2>
+      <div id="storeExtras"></div>
+      <div class="store-section">Skins</div>
+      <div id="shopList"></div>
+      <div class="row"><button class="primary" id="btnShopClose">Close</button></div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="overlay" id="ovSet">
+    <div class="card">
+      <h1>⚙ Settings</h1>
+      <div class="set-item"><span style="flex:1">Sound effects</span>
+        <button id="setSound">On</button></div>
+      <div class="set-item"><span style="flex:1">Music</span>
+        <button id="setMusic">Off</button></div>
+      <div class="set-item"><span style="flex:1">Vibration</span>
+        <button id="setHaptics">On</button></div>
+      <div class="set-item"><span style="flex:1">Reduced motion</span>
+        <button id="setMotion">Off</button></div>
+      <div class="set-item"><span style="flex:1">Theme</span>
+        <button id="setTheme">Indigo</button></div>
+      <div class="set-item"><span style="flex:1">Language</span>
+        <button id="setLang">English</button></div>
+      <div class="set-item"><span style="flex:1">Remove ads</span>
+        <button id="setNoAds">Buy</button></div>
+      <div class="set-item"><span style="flex:1">Restore purchases</span>
+        <button id="setRestore">Restore</button></div>
+      <div class="set-item"><span style="flex:1">Rate the game</span>
+        <button id="setRate">Rate</button></div>
+      <div class="set-item"><span style="flex:1">Reset progress</span>
+        <button id="setReset">Reset</button></div>
+      <div class="set-item"><span style="flex:1">About &amp; privacy</span>
+        <button id="setAbout">Open</button></div>
+      <div class="row"><button class="primary" id="btnSetClose">Close</button></div>
+    </div>
+  </div>
+
+  <!-- Stats & achievements -->
+  <div class="overlay" id="ovStats">
+    <div class="card">
+      <h1>📊 Stats</h1>
+      <div class="stat"><span>Games played</span><b id="stGames">0</b></div>
+      <div class="stat"><span>Total score</span><b id="stTotal">0</b></div>
+      <div class="stat"><span>Best score</span><b id="stBest">0</b></div>
+      <div class="stat"><span>Best combo</span><b id="stCombo">0</b></div>
+      <div class="stat"><span>Coins earned</span><b id="stCoins">0</b></div>
+      <div class="stat"><span>Time played</span><b id="stTime">0m</b></div>
+      <h1 style="margin-top:18px">🥇 Top Scores</h1>
+      <ol id="lbList" class="lb"></ol>
+      <h1 style="margin-top:18px">🏆 Achievements</h1>
+      <div id="achList"></div>
+      <div class="row"><button class="primary" id="btnStatsClose">Close</button></div>
+    </div>
+  </div>
+
+  <!-- Daily reward -->
+  <div class="overlay" id="ovReward">
+    <div class="card center">
+      <h1>🎁 Daily Reward</h1>
+      <h2 id="rwStreak">Day 1 streak</h2>
+      <p style="font-size:40px;font-weight:900;color:var(--yellow);margin:10px 0" id="rwAmount">🪙 +50</p>
+      <div class="row"><button class="primary" id="btnClaim">Claim</button></div>
+    </div>
+  </div>
+
+  <!-- About -->
+  <div class="overlay" id="ovAbout">
+    <div class="card">
+      <div class="brand" style="justify-content:center;margin-bottom:10px">
+        <svg class="brand-logo" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="width:48px;height:48px">
+          <rect width="48" height="48" rx="11" fill="#1b2140"/>
+          <rect x="11" y="27" width="8" height="8" rx="2.5" fill="#1e7a45"/>
+          <rect x="19" y="27" width="8" height="8" rx="2.5" fill="#25995a"/>
+          <rect x="27" y="27" width="8" height="8" rx="2.5" fill="#2ecc71"/>
+          <rect x="27" y="19" width="8" height="8" rx="2.5" fill="#2ecc71"/>
+          <rect x="19" y="19" width="8" height="8" rx="2.5" fill="#2ecc71"/>
+          <circle cx="22" cy="22.5" r="1.7" fill="#fff"/><circle cx="26" cy="22.5" r="1.7" fill="#fff"/>
+          <circle cx="22" cy="22.5" r=".85" fill="#111"/><circle cx="26" cy="22.5" r=".85" fill="#111"/>
+          <circle cx="14" cy="21" r="3.2" fill="#e74c3c"/><circle cx="13" cy="20" r="1" fill="#fff"/>
+        </svg>
+        <div><div class="brand-title" style="font-size:26px">Snake</div>
+          <div class="brand-sub">Premium · v<span id="verNum">1.0.0</span></div></div>
+      </div>
+      <h1 style="font-size:18px">How to play</h1>
+      <p class="muted" style="line-height:1.5;margin:6px 0 0">
+        Guide the snake to eat food and grow. Chain quick bites for a combo multiplier.
+        Grab power-ups: 🛡 shield, 2× score, 🧲 magnet. Don't hit yourself, walls (except Classic)
+        or obstacles. Move with <b>swipe</b>, <b>arrow keys</b> or <b>WASD</b>.
+      </p>
+      <h1 style="font-size:18px;margin-top:16px">Privacy</h1>
+      <p class="muted" style="line-height:1.5;margin:6px 0 0">
+        This game runs entirely in your browser. Your progress is saved locally on your device
+        and never sent anywhere. <a href="privacy.html" target="_blank" style="color:var(--accent)">Privacy ↗</a>
+        · <a href="terms.html" target="_blank" style="color:var(--accent)">Terms ↗</a>
+      </p>
+      <p class="muted" style="margin-top:16px;text-align:center;font-size:12px">Made with ❤ · HTML5 Canvas</p>
+      <div class="row"><button class="primary" id="btnAboutClose">Close</button></div>
+    </div>
+  </div>
+
+  <!-- First-run onboarding -->
+  <div class="overlay" id="ovIntro">
+    <div class="card center">
+      <svg class="brand-logo" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="width:64px;height:64px;margin:0 auto 8px">
+        <rect width="48" height="48" rx="11" fill="#1b2140"/>
+        <rect x="11" y="27" width="8" height="8" rx="2.5" fill="#1e7a45"/>
+        <rect x="19" y="27" width="8" height="8" rx="2.5" fill="#25995a"/>
+        <rect x="27" y="27" width="8" height="8" rx="2.5" fill="#2ecc71"/>
+        <rect x="27" y="19" width="8" height="8" rx="2.5" fill="#2ecc71"/>
+        <rect x="19" y="19" width="8" height="8" rx="2.5" fill="#2ecc71"/>
+        <circle cx="22" cy="22.5" r="1.7" fill="#fff"/><circle cx="26" cy="22.5" r="1.7" fill="#fff"/>
+        <circle cx="22" cy="22.5" r=".85" fill="#111"/><circle cx="26" cy="22.5" r=".85" fill="#111"/>
+        <circle cx="14" cy="21" r="3.2" fill="#e74c3c"/><circle cx="13" cy="20" r="1" fill="#fff"/>
+      </svg>
+      <h1>Welcome!</h1>
+      <div style="text-align:left;margin-top:6px">
+        <div class="intro-row">🍎 <span>Eat food to grow. Chain quick bites for a <b>combo</b> bonus.</span></div>
+        <div class="intro-row">⚡ <span>Grab power-ups: 🛡 shield, <b>2×</b> score, 🧲 magnet.</span></div>
+        <div class="intro-row">📱 <span>Move by <b>swipe</b>, <b>arrows</b> or <b>WASD</b>. Avoid walls &amp; yourself.</span></div>
+        <div class="intro-row">🛍 <span>Earn coins, unlock skins, beat your high score.</span></div>
+      </div>
+      <div class="row"><button class="primary" id="btnIntro" style="width:100%">Let's play 🐍</button></div>
+    </div>
+  </div>
+
+  <!-- Rewarded ad (simulated placeholder) -->
+  <div class="overlay" id="ovAd">
+    <div class="card center">
+      <h1 id="adTitle">Rewarded Ad</h1>
+      <p class="muted" id="adBody" style="margin:6px 0 0">A rewarded video would play here.</p>
+      <div style="height:6px;background:rgba(255,255,255,.12);border-radius:99px;margin:18px 0;overflow:hidden">
+        <div id="adBar" style="height:100%;width:0%;background:var(--accent)"></div>
+      </div>
+      <div class="row"><button class="primary" id="adClaim" disabled>Please wait…</button></div>
+      <div class="row"><button id="adCancel" style="width:100%">Cancel</button></div>
+      <p class="muted" style="font-size:11px;margin-top:10px">Demo placeholder — plug a real ad SDK here.</p>
+    </div>
+  </div>
+
+  <!-- Purchase sheet (demo) -->
+  <div class="overlay" id="ovBuy">
+    <div class="card center">
+      <h1 id="buyName">Product</h1>
+      <p class="muted" id="buyDesc" style="margin:6px 0 0"></p>
+      <p style="font-size:34px;font-weight:900;color:var(--yellow);margin:14px 0" id="buyPrice">$0.99</p>
+      <div class="row"><button class="primary" id="buyConfirm">Buy</button>
+        <button id="buyCancel">Cancel</button></div>
+      <p class="muted" style="font-size:11px;margin-top:10px">Demo — no real charge in the web build. Wire to Google Play / App Store billing for release.</p>
+    </div>
+  </div>
+</div>
+
+<script src="native.js"></script>
+<script>
+"use strict";
+(function(){
+// ---------- Config ----------
+const GRID = 22;                 // logical cells per side (fixed for consistent play)
+const COMBO_TIME = 6000;         // ms
+const BASE_STEP = 150;           // ms per move at level 1
+const MIN_STEP = 65;
+const SLOW_FACTOR = 1.8;
+const SURVIVOR_MS = 120000;
+const MAGNET_SPEED = 9;          // magnet fly-in speed, cells per second (higher = faster)
+
+const COL = {
+  green:'#2ecc71', red:'#e74c3c', blue:'#3498db', yellow:'#f1c40f',
+  gray:'#95a5a6', purple:'#9b59b6', orange:'#e67e22', cyan:'#1abc9c', white:'#f0f0f0'
+};
+
+const SKINS = {
+  classic:{name:'Classic', color:'#2ecc71', price:0},
+  fire:   {name:'Fire',    color:'#ff6432', price:100},
+  ice:    {name:'Ice',     color:'#64c8ff', price:150},
+  gold:   {name:'Gold',    color:'#ffd700', price:200},
+  neon:   {name:'Neon',    color:'#ff00ff', price:300},
+  rainbow:{name:'Rainbow', color:null, price:500, rainbow:true},
+  // Premium skins (real-money): galaxy comes with Full Version, aurora is a direct purchase.
+  galaxy: {name:'Galaxy',  color:'#8a7dff', premium:true},
+  aurora: {name:'Aurora',  color:'#3affc8', iap:'skin_aurora', iapPrice:'$1.49'},
+};
+
+// In-app purchases. Ids must match the products you create in Google Play / App Store.
+const IAP_PRODUCTS = {
+  premium:    {name:'Full Version',  price:'$2.99', desc:'Remove ads + Galaxy skin + 500 coins'},
+  noads:      {name:'Remove Ads',    price:'$1.99', desc:'No ads, ever'},
+  coins1000:  {name:'1,000 Coins',   price:'$0.99', coins:1000},
+  coins6000:  {name:'6,000 Coins',   price:'$3.99', coins:6000, badge:'Best value'},
+  skin_aurora:{name:'Aurora Skin',   price:'$1.49', desc:'Exclusive glowing skin'},
+};
+
+// ---------- Localization (EN / RU) ----------
+const STRINGS = {
+  en: {
+    premiumEdition:'Premium Edition', best:'Best', coins:'Coins', streak:'Streak',
+    classic:'Classic', classicD:'No obstacles · walls wrap around',
+    obstacles:'Obstacles', obstaclesD:'Obstacles · walls are deadly',
+    hardcore:'Hardcore', hardcoreD:'Fast · walls kill · ×1.5 coins',
+    timeattack:'Time Attack', timeattackD:'60 seconds · walls wrap · score rush',
+    shop:'🛍 Shop', stats:'📊 Stats', settings:'⚙ Settings', installApp:'📲 Install app',
+    hint:'Swipe · Arrows · WASD to move · ', about:'About',
+    score:'Score', high:'High', level:'Level',
+    paused:'Paused', resume:'Resume', restart:'Restart', mainMenu:'Main menu',
+    gameOver:'Game Over', highScore:'High score', levelReached:'Level reached',
+    playAgain:'Play again', menu:'Menu', shareScore:'📤 Share score',
+    continueAd:'▶ Continue — watch ad', doubleAd:'🪙 Double coins — watch ad',
+    newHigh:'🎉 New high score!',
+    storeTitle:'🛍 Store', skinsSection:'Skins', close:'Close',
+    fullVersion:'Full Version', fullVersionThanks:'Thanks for your support!',
+    removeAds:'Remove Ads', buy:'Buy', equip:'Equip', equipped:'Equipped',
+    setSound:'Sound effects', setMusic:'Music', setVibration:'Vibration',
+    setMotion:'Reduced motion', setTheme:'Theme', setRemoveAds:'Remove ads',
+    setRestore:'Restore purchases', setRate:'Rate the game', setReset:'Reset progress',
+    setAbout:'About & privacy', on:'On', off:'Off', reset:'Reset', restore:'Restore', rate:'Rate', open:'Open', owned:'Owned ✓',
+    statsTitle:'📊 Stats', gamesPlayed:'Games played', totalScore:'Total score',
+    bestScore:'Best score', bestCombo:'Best combo', coinsEarned:'Coins earned',
+    timePlayed:'Time played', topScores:'🥇 Top Scores', achievements:'🏆 Achievements',
+    noScores:'No scores yet — play a round!', locked:'Locked', unlocked:'Unlocked',
+    dailyReward:'🎁 Daily Reward', dayStreak:'Day {n} streak', claim:'Claim',
+    welcome:'Welcome!', letsPlay:"Let's play 🐍",
+    intro1:'Eat food to grow. Chain quick bites for a <b>combo</b> bonus.',
+    intro2:'Grab power-ups: 🛡 shield, <b>2×</b> score, 🧲 magnet.',
+    intro3:'Move by <b>swipe</b>, <b>arrows</b> or <b>WASD</b>. Avoid walls &amp; yourself.',
+    intro4:'Earn coins, unlock skins, beat your high score.',
+    daily:'Daily', dailyDone:'🎯 Done ✓', language:'Language',
+    challScore:'Score {n} points', challCombo:'Reach {n}x combo', challLevel:'Reach level {n}', challSurvival:'Survive {n} seconds',
+    hintInGame:'Swipe or use arrow keys',
+  },
+  ru: {
+    premiumEdition:'Премиум-издание', best:'Рекорд', coins:'Монеты', streak:'Серия',
+    classic:'Классика', classicD:'Без препятствий · стены телепортируют',
+    obstacles:'Препятствия', obstaclesD:'Препятствия · стены убивают',
+    hardcore:'Хардкор', hardcoreD:'Быстро · стены убивают · ×1.5 монет',
+    timeattack:'На время', timeattackD:'60 секунд · стены-обёртка · гонка за очками',
+    shop:'🛍 Магазин', stats:'📊 Статистика', settings:'⚙ Настройки', installApp:'📲 Установить',
+    hint:'Свайп · Стрелки · WASD · ', about:'Об игре',
+    score:'Счёт', high:'Рекорд', level:'Уровень',
+    paused:'Пауза', resume:'Продолжить', restart:'Заново', mainMenu:'В меню',
+    gameOver:'Игра окончена', highScore:'Рекорд', levelReached:'Уровень',
+    playAgain:'Ещё раз', menu:'Меню', shareScore:'📤 Поделиться',
+    continueAd:'▶ Продолжить — за рекламу', doubleAd:'🪙 ×2 монеты — за рекламу',
+    newHigh:'🎉 Новый рекорд!',
+    storeTitle:'🛍 Магазин', skinsSection:'Скины', close:'Закрыть',
+    fullVersion:'Полная версия', fullVersionThanks:'Спасибо за поддержку!',
+    removeAds:'Убрать рекламу', buy:'Купить', equip:'Надеть', equipped:'Надето',
+    setSound:'Звуки', setMusic:'Музыка', setVibration:'Вибрация',
+    setMotion:'Меньше анимаций', setTheme:'Тема', setRemoveAds:'Убрать рекламу',
+    setRestore:'Восстановить покупки', setRate:'Оценить игру', setReset:'Сбросить прогресс',
+    setAbout:'Об игре и приватность', on:'Вкл', off:'Выкл', reset:'Сброс', restore:'Восст.', rate:'Оценить', open:'Открыть', owned:'Куплено ✓',
+    statsTitle:'📊 Статистика', gamesPlayed:'Игр сыграно', totalScore:'Всего очков',
+    bestScore:'Лучший счёт', bestCombo:'Лучшее комбо', coinsEarned:'Монет заработано',
+    timePlayed:'Время в игре', topScores:'🥇 Топ результатов', achievements:'🏆 Достижения',
+    noScores:'Пока пусто — сыграй партию!', locked:'Закрыто', unlocked:'Открыто',
+    dailyReward:'🎁 Ежедневная награда', dayStreak:'Серия: {n} дн.', claim:'Забрать',
+    welcome:'Добро пожаловать!', letsPlay:'Играть 🐍',
+    intro1:'Ешь еду, чтобы расти. Быстрые укусы подряд дают <b>комбо</b>-бонус.',
+    intro2:'Собирай усилители: 🛡 щит, <b>2×</b> очки, 🧲 магнит.',
+    intro3:'Управление: <b>свайп</b>, <b>стрелки</b> или <b>WASD</b>. Не врезайся в стены и себя.',
+    intro4:'Зарабатывай монеты, открывай скины, побивай рекорд.',
+    daily:'Задание', dailyDone:'🎯 Готово ✓', language:'Язык',
+    challScore:'Набери {n} очков', challCombo:'Комбо {n}x', challLevel:'Достигни {n} уровня', challSurvival:'Продержись {n} сек.',
+    hintInGame:'Свайп или стрелки',
+  },
+};
+let L = STRINGS.en;
+function t(k){ return (L[k]!=null)?L[k]:(STRINGS.en[k]!=null?STRINGS.en[k]:k); }
+
+const ACH = {
+  first_score:{name:'First Blood', desc:'Score 10'},
+  combo_master:{name:'Combo Master', desc:'Reach 5x combo'},
+  level_5:{name:'Rising Star', desc:'Reach level 5'},
+  score_100:{name:'Century', desc:'Score 100'},
+  survivor:{name:'Survivor', desc:'Play 2 minutes'},
+};
+
+const CHALLENGES = [
+  {type:'score', target:50,  name:'Score 50 points',  reward:100},
+  {type:'score', target:100, name:'Score 100 points', reward:200},
+  {type:'combo', target:3,   name:'Reach 3x combo',   reward:150},
+  {type:'level', target:3,   name:'Reach level 3',    reward:150},
+  {type:'survival', target:60, name:'Survive 60 seconds', reward:100},
+];
+
+const POWERUPS = {
+  x2:     {icon:'2×', color:'#ffd54a', label:'Double score', dur:8000},
+  shield: {icon:'🛡', color:'#5bd0ff', label:'Shield',       dur:6000},
+  magnet: {icon:'🧲', color:'#ff6bd6', label:'Magnet',       dur:8000},
+};
+const POWERUP_KEYS = Object.keys(POWERUPS);
+
+const THEMES = {
+  default:{name:'Indigo',  top:'#22284a', bottom:'#12162a'},
+  ocean:  {name:'Ocean',   top:'#123a5a', bottom:'#0a1830'},
+  forest: {name:'Forest',  top:'#1e3a2a', bottom:'#0d1c15'},
+  plum:   {name:'Plum',    top:'#3a2350', bottom:'#180f28'},
+  slate:  {name:'Slate',   top:'#2b3140', bottom:'#141821'},
+};
+const THEME_KEYS = Object.keys(THEMES);
+function applyTheme(id){
+  if(!THEMES[id]) id='default';
+  G.theme=id;
+  document.documentElement.style.setProperty('--bg-top', THEMES[id].top);
+  document.documentElement.style.setProperty('--bg-bottom', THEMES[id].bottom);
+}
+
+// ---------- Persistence ----------
+const store = {
+  get(k, d){ try{ const v=localStorage.getItem('snake_'+k); return v===null?d:JSON.parse(v);}catch(e){return d;} },
+  set(k, v){ try{ localStorage.setItem('snake_'+k, JSON.stringify(v)); }catch(e){} },
+};
+
+// ---------- Sound (WebAudio, no assets) ----------
+const Sound = {
+  ctx:null, enabled:true,
+  init(){ if(!this.ctx){ try{ this.ctx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } },
+  beep(f1,f2,dur,type='sine',vol=.15){
+    if(!this.enabled||!this.ctx) return;
+    const t=this.ctx.currentTime, o=this.ctx.createOscillator(), g=this.ctx.createGain();
+    o.type=type; o.frequency.setValueAtTime(f1,t); o.frequency.linearRampToValueAtTime(f2,t+dur);
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.01);
+    g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+    o.connect(g); g.connect(this.ctx.destination); o.start(t); o.stop(t+dur+0.02);
+  },
+  eat(){ this.beep(440,660,.09); },
+  bonus(){ this.beep(660,990,.16,'sine',.18); },
+  slow(){ this.beep(520,300,.16); },
+  over(){ this.beep(400,120,.45,'square',.18); },
+  ach(){ this.beep(700,1100,.26,'sine',.18); },
+  buy(){ this.beep(600,900,.2,'sine',.18); },
+  denied(){ this.beep(300,200,.18,'square'); },
+};
+
+// ---------- State ----------
+const G = {
+  mode:'classic', cell:20, canvasSize:440,
+  snake:[], dir:{x:1,y:0}, nextDir:{x:1,y:0}, prevSnake:[], grow:0,
+  food:{x:0,y:0,type:'normal',timer:0},
+  obstacles:[], particles:[], notes:[],
+  score:0, high:0, level:1, combo:0, comboEnd:0,
+  running:false, paused:false, over:false,
+  stepMs:BASE_STEP, stepAcc:0, lastTs:0, playMs:0,
+  slowUntil:0,
+  currency:0, currentSkin:'classic', skinsUnlocked:{classic:true},
+  settings:{sound:true, music:false, haptics:true, motion:false},
+  achievements:{}, daily:null, dailyDone:false,
+  stats:{games:0, total:0, combo:0, coins:0, time:0},
+  bestComboRun:0,
+  powerup:null, x2Until:0, shieldUntil:0, magnetUntil:0,
+  timeLeft:0, theme:'default', premium:false, lang:'en',
+};
+function hasObstacles(){ return G.mode==='obstacles' || G.mode==='hardcore'; }
+function wrapWalls(){ return G.mode==='classic' || G.mode==='timeattack'; }
+function shieldOn(){ return performance.now()<G.shieldUntil; }
+function x2On(){ return performance.now()<G.x2Until; }
+function magnetOn(){ return performance.now()<G.magnetUntil; }
+
+function spawnPowerup(){
+  let x,y,guard=0;
+  do{ x=rnd(GRID); y=rnd(GRID); guard++; }
+  while((!cellFree(x,y) || (G.food.x===x&&G.food.y===y)) && guard<400);
+  const kind=POWERUP_KEYS[rnd(POWERUP_KEYS.length)];
+  G.powerup={x,y,kind,life:9000};
+}
+function applyPowerup(kind){
+  const now=performance.now(), dur=POWERUPS[kind].dur;
+  if(kind==='x2') G.x2Until=now+dur;
+  else if(kind==='shield') G.shieldUntil=now+dur;
+  else if(kind==='magnet') G.magnetUntil=now+dur;
+  const cx=(G.powerup.x+0.5)*G.cell, cy=(G.powerup.y+0.5)*G.cell;
+  burst(cx,cy,POWERUPS[kind].color,18);
+  notify(POWERUPS[kind].icon+' '+POWERUPS[kind].label+'!', POWERUPS[kind].color);
+  Sound.bonus(); vibe([10,25,10]);
+}
+
+// ---------- Haptics ----------
+function vibe(p){ if(G.settings.haptics && navigator.vibrate){ try{ navigator.vibrate(p); }catch(e){} } }
+
+// ---------- Background music (WebAudio, generated) ----------
+const Music = {
+  timer:null, i:0, notes:[261.63,329.63,392.00,329.63,293.66,349.23,440.00,349.23],
+  start(){
+    if(!G.settings.music) return;
+    Sound.init(); if(!Sound.ctx || this.timer) return;
+    this.timer=setInterval(()=>this.beat(), 380);
+  },
+  stop(){ if(this.timer){ clearInterval(this.timer); this.timer=null; } },
+  beat(){
+    if(!Sound.ctx) return;
+    const f=this.notes[this.i%this.notes.length]; this.i++;
+    const t=Sound.ctx.currentTime, o=Sound.ctx.createOscillator(), g=Sound.ctx.createGain();
+    o.type='triangle'; o.frequency.value=f;
+    g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(0.045,t+0.05);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.34);
+    o.connect(g); g.connect(Sound.ctx.destination); o.start(t); o.stop(t+0.36);
+  }
+};
+
+// ---------- Canvas ----------
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+let DPR = Math.max(1, Math.min(3, window.devicePixelRatio||1));
+
+function resize(){
+  const app = document.getElementById('app');
+  const w = app.clientWidth, h = app.clientHeight;
+  const size = Math.min(w-16, h-150);          // leave room for HUD + toolbar
+  const s = Math.max(200, size);
+  G.cell = Math.floor(s / GRID);
+  G.canvasSize = G.cell * GRID;
+  canvas.style.width = G.canvasSize+'px';
+  canvas.style.height = G.canvasSize+'px';
+  canvas.width = G.canvasSize*DPR;
+  canvas.height = G.canvasSize*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize);
+
+// ---------- Helpers ----------
+const rnd = n => Math.floor(Math.random()*n);
+function cellFree(x,y){
+  if(G.snake.some(s=>s.x===x&&s.y===y)) return false;
+  if(G.obstacles.some(o=>o.x===x&&o.y===y)) return false;
+  return true;
+}
+function spawnFood(){
+  let x,y,guard=0;
+  do{ x=rnd(GRID); y=rnd(GRID); guard++; }while(!cellFree(x,y) && guard<500);
+  const r=Math.random();
+  let type='normal', timer=0;
+  if(r<0.1){ type='bonus'; timer=6000; }
+  else if(r<0.2){ type='slow'; timer=5000; }
+  G.food={x,y,fx:x,fy:y,type,timer};   // fx/fy = smooth display position (used for magnet fly-in)
+}
+function genObstacles(){
+  G.obstacles=[];
+  if(!hasObstacles()) return;
+  const n=Math.min(5+G.level*2, 20);
+  const mid=Math.floor(GRID/2);
+  let guard=0;
+  while(G.obstacles.length<n && guard<800){
+    guard++;
+    const x=2+rnd(GRID-4), y=2+rnd(GRID-4);
+    if((x===mid&&y===mid)) continue;
+    if(G.obstacles.some(o=>o.x===x&&o.y===y)) continue;
+    if(Math.abs(x-mid)<2 && y===mid) continue; // keep start row clearish
+    G.obstacles.push({x,y});
+  }
+}
+
+// ---------- Notifications ----------
+function notify(text, color){
+  G.notes.push({text,color:color||COL.yellow,end:performance.now()+2600});
+  renderNotes();
+}
+function renderNotes(){
+  const el=document.getElementById('notes');
+  el.innerHTML='';
+  for(const n of G.notes){
+    const d=document.createElement('div'); d.className='note';
+    d.textContent=n.text; d.style.color=n.color; el.appendChild(d);
+  }
+}
+
+// ---------- Achievements / daily ----------
+function unlock(id){
+  if(G.achievements[id]) return;
+  G.achievements[id]=true; store.set('ach', G.achievements);
+  notify('🏆 '+ACH[id].name, COL.yellow); Sound.ach();
+}
+function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function loadDaily(){
+  const idx = Math.floor(Date.now()/86400000);
+  G.daily = CHALLENGES[idx % CHALLENGES.length];
+  const saved = store.get('daily', null);
+  G.dailyDone = !!(saved && saved.date===todayKey() && saved.done);
+}
+function checkDaily(){
+  if(G.dailyDone||!G.daily) return;
+  const c=G.daily; let ok=false;
+  if(c.type==='score') ok=G.score>=c.target;
+  else if(c.type==='combo') ok=G.combo>=c.target;
+  else if(c.type==='level') ok=G.level>=c.target;
+  else if(c.type==='survival') ok=G.playMs>=c.target*1000;
+  if(ok){
+    G.dailyDone=true; store.set('daily',{date:todayKey(),done:true});
+    G.currency+=c.reward; store.set('currency',G.currency);
+    notify('✅ Daily done! +'+c.reward+' 🪙', COL.green); Sound.ach();
+    updateHUD();
+  }
+}
+
+// ---------- Particles ----------
+function burst(px,py,color,count){
+  for(let i=0;i<count;i++){
+    G.particles.push({x:px,y:py,
+      vx:(Math.random()-.5)*4, vy:(Math.random()-.5)*4,
+      life:1, size:3+Math.random()*3, color});
+  }
+}
+
+// ---------- Game flow ----------
+function startGame(mode){
+  G.mode=mode;
+  const mid=Math.floor(GRID/2);
+  G.snake=[{x:mid,y:mid},{x:mid-1,y:mid},{x:mid-2,y:mid}];
+  G.prevSnake=G.snake.map(s=>({...s}));
+  G.dir={x:1,y:0}; G.nextDir={x:1,y:0}; G.grow=0;
+  G.score=0; G.level=1; G.combo=0; G.comboEnd=0;
+  G.particles=[]; G.notes=[]; G.playMs=0; G.slowUntil=0; G.bestComboRun=0;
+  G.powerup=null; G.x2Until=0; G.shieldUntil=0; G.magnetUntil=0;
+  G.revived=false; G.earnedThisRun=0;
+  G.timeLeft = mode==='timeattack' ? 60000 : 0;
+  G.over=false; G.paused=false; G.running=true;
+  G.stepMs=BASE_STEP; G.stepAcc=0;
+  genObstacles(); spawnFood();
+  hideAll(); showGameUI(true); updateHUD(); Music.start();
+  document.getElementById('hint').textContent = t('hintInGame');
+  setTimeout(()=>{const h=document.getElementById('hint'); if(h)h.textContent='';}, 3500);
+  G.lastTs=performance.now();
+}
+function gameOver(){
+  if(G.over) return;
+  G.over=true; G.running=false; Sound.over(); vibe(140); Music.stop();
+  if(G.score>G.high){ G.high=G.score; store.set('high',G.high); }
+  // Earn coins from this run (hardcore pays 1.5x)
+  const earned=Math.floor(G.score/10 * (G.mode==='hardcore'?1.5:1));
+  if(earned>0){ G.currency+=earned; store.set('currency',G.currency); }
+  // Update lifetime stats
+  const st=G.stats;
+  st.games++; st.total+=G.score; st.coins+=earned; st.time+=G.playMs;
+  if(G.bestComboRun>st.combo) st.combo=G.bestComboRun;
+  store.set('stats', st);
+  // Local leaderboard (top 10)
+  if(G.score>0){ let lb=store.get('scores',[]); lb.push(G.score); lb.sort((a,b)=>b-a); store.set('scores', lb.slice(0,10)); }
+  document.getElementById('goScore').textContent=G.score;
+  document.getElementById('goHi').textContent=G.high;
+  document.getElementById('goLevel').textContent=G.level;
+  G.earnedThisRun=earned;
+  const nn=[]; if(G.score>=G.high&&G.score>0) nn.push(t('newHigh'));
+  if(earned>0) nn.push('🪙 +'+earned+' '+t('coins').toLowerCase());
+  document.getElementById('goNew').textContent=nn.join('  ·  ');
+  // Monetization offers (hidden for ad-free users / when not applicable)
+  document.getElementById('rowRevive').style.display = (!G.revived && !Ads.removed && G.score>0) ? 'flex' : 'none';
+  document.getElementById('rowX2').style.display = (earned>0 && !Ads.removed) ? 'flex' : 'none';
+  updateHUD(); show('ovOver');
+}
+
+function setDir(x,y){
+  // no 180° reversal relative to committed direction
+  if(x===-G.dir.x && y===-G.dir.y) return;
+  G.nextDir={x,y};
+}
+
+function step(){
+  G.dir=G.nextDir;
+  const head=G.snake[0];
+
+  // Magnet: pull the food one cell toward the head each move
+  // (Magnet no longer moves food on the grid — it flies off-grid to the head in update().)
+  let nx=head.x+G.dir.x, ny=head.y+G.dir.y;
+  const ghost=shieldOn();
+  // Walls (shield lets you wrap safely everywhere)
+  if(wrapWalls() || ghost){
+    nx=(nx+GRID)%GRID; ny=(ny+GRID)%GRID;
+  } else if(nx<0||nx>=GRID||ny<0||ny>=GRID){ gameOver(); return; }
+  // Self / obstacle collisions (ignored while shielded)
+  if(!ghost){
+    if(G.snake.some(s=>s.x===nx&&s.y===ny)){ gameOver(); return; }
+    if(hasObstacles() && G.obstacles.some(o=>o.x===nx&&o.y===ny)){ gameOver(); return; }
+  }
+
+  G.prevSnake=G.snake.map(s=>({...s}));
+  G.snake.unshift({x:nx,y:ny});
+  if(G.grow>0){ G.grow--; } else { G.snake.pop(); }
+
+  // Power-up pickup
+  if(G.powerup && nx===G.powerup.x && ny===G.powerup.y){ applyPowerup(G.powerup.kind); G.powerup=null; }
+
+  // food (grid pickup — when not magnetised, the head walks onto the cell)
+  if(nx===G.food.x && ny===G.food.y){ eatFood(); }
+}
+
+// Eat the current food (from a grid pickup OR a magnet fly-in) and spawn the next.
+function eatFood(){
+  G.combo++; G.comboEnd=performance.now()+COMBO_TIME;
+  if(G.combo>G.bestComboRun) G.bestComboRun=G.combo;
+  if(G.combo>=5) unlock('combo_master');
+  let mult=1+(G.combo-1)*0.1;
+  if(x2On()) mult*=2;
+  let pts=10, col=COL.red, cnt=8;
+  if(G.food.type==='bonus'){ pts=30; col=COL.purple; cnt=16; Sound.bonus(); vibe([10,20,10]); }
+  else if(G.food.type==='slow'){ pts=15; col=COL.cyan; cnt=12; G.slowUntil=performance.now()+3500; Sound.slow(); vibe(20); }
+  else { Sound.eat(); vibe(12); }
+  G.score+=Math.floor(pts*mult); G.grow++;
+  const fx=(G.food.fx!=null?G.food.fx:G.food.x), fy=(G.food.fy!=null?G.food.fy:G.food.y);
+  burst((fx+0.5)*G.cell, (fy+0.5)*G.cell, col, cnt);
+  if(G.score>=10) unlock('first_score');
+  if(G.score>=100) unlock('score_100');
+  G.level=1+Math.floor(G.score/50);
+  if(G.level>=5) unlock('level_5');
+  spawnFood();
+  if(!G.powerup && Math.random()<0.16) spawnPowerup();
+  checkDaily(); updateHUD();
+}
+
+function update(dt){
+  if(!G.running||G.paused||G.over) return;
+  G.playMs+=dt;
+  if(G.playMs>=SURVIVOR_MS) unlock('survivor');
+  if(G.mode==='timeattack'){ G.timeLeft-=dt; if(G.timeLeft<=0){ G.timeLeft=0; gameOver(); return; } }
+  // combo expiry
+  if(G.combo>0 && performance.now()>G.comboEnd){ G.combo=0; updateHUD(); }
+  // food timer
+  if(G.food.type!=='normal'){ G.food.timer-=dt; if(G.food.timer<=0){ G.food.type='normal'; } }
+  // power-up lifetime on the board
+  if(G.powerup){ G.powerup.life-=dt; if(G.powerup.life<=0) G.powerup=null; }
+  // step speed
+  let base=BASE_STEP-(G.level-1)*11;
+  if(G.mode==='hardcore') base-=35;
+  let stepMs=Math.max(MIN_STEP, base);
+  if(performance.now()<G.slowUntil) stepMs*=SLOW_FACTOR;
+  G.stepMs=stepMs;
+  G.stepAcc+=dt;
+  while(G.stepAcc>=G.stepMs){ G.stepAcc-=G.stepMs; if(!G.over) step(); }
+  // Magnet: food flies off-grid straight into the head and is eaten on arrival.
+  if(magnetOn() && G.food){
+    const head=G.snake[0];
+    const stepCells = MAGNET_SPEED * dt/1000;     // constant, visible speed toward the head
+    const dx=head.x-G.food.fx, dy=head.y-G.food.fy, d=Math.hypot(dx,dy);
+    if(!G.over && (d<=stepCells || d<0.5)) eatFood();               // arrived -> eat, next food spawns
+    else { G.food.fx += dx/d*stepCells; G.food.fy += dy/d*stepCells; }
+  } else if(G.food){
+    G.food.fx = G.food.x; G.food.fy = G.food.y;   // keep display on the grid cell
+  }
+  // particles
+  for(const p of G.particles){ p.x+=p.vx; p.y+=p.vy; p.vx*=.96; p.vy*=.96; p.life-=dt/700; p.size*=.985; }
+  G.particles=G.particles.filter(p=>p.life>0);
+  // notes expiry
+  const now=performance.now();
+  const before=G.notes.length;
+  G.notes=G.notes.filter(n=>n.end>now);
+  if(G.notes.length!==before) renderNotes();
+}
+
+// ---------- Rendering ----------
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+function drawBackground(){
+  const s=G.canvasSize;
+  const th=THEMES[G.theme]||THEMES.default;
+  const g=ctx.createLinearGradient(0,0,0,s);
+  g.addColorStop(0,th.top); g.addColorStop(1,th.bottom);
+  ctx.fillStyle=g; ctx.fillRect(0,0,s,s);
+  ctx.strokeStyle='rgba(255,255,255,.045)'; ctx.lineWidth=1;
+  for(let i=0;i<=GRID;i++){
+    const p=i*G.cell+0.5;
+    ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,s);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(s,p);ctx.stroke();
+  }
+}
+function drawObstacle(o){
+  const x=o.x*G.cell, y=o.y*G.cell, s=G.cell-2;
+  ctx.fillStyle=COL.gray; roundRect(x+1,y+1,s,s,s/4); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.18)'; roundRect(x+3,y+3,s/3,s/3,3); ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.3)'; ctx.lineWidth=2; roundRect(x+1,y+1,s,s,s/4); ctx.stroke();
+}
+function drawFood(){
+  const f=G.food, fx=(f.fx!=null?f.fx:f.x), fy=(f.fy!=null?f.fy:f.y);
+  const cx=(fx+0.5)*G.cell, cy=(fy+0.5)*G.cell, r=G.cell*0.36;
+  const t=performance.now();
+  if(f.type==='normal'){
+    ctx.shadowColor=COL.red; ctx.shadowBlur=12;
+    ctx.fillStyle=COL.red; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(cx-r*0.3,cy-r*0.3,r*0.28,0,7); ctx.fill();
+    ctx.strokeStyle='#228B22'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx,cy-r); ctx.lineTo(cx,cy-r-4); ctx.stroke();
+  } else if(f.type==='bonus'){
+    const pulse=1+Math.sin(t/120)*0.12;
+    ctx.shadowColor=COL.purple; ctx.shadowBlur=18;
+    drawStar(cx,cy,5,r*pulse,r*0.5*pulse,COL.purple);
+    ctx.shadowBlur=0;
+    ctx.fillStyle=COL.yellow; ctx.beginPath(); ctx.arc(cx,cy,r*0.35,0,7); ctx.fill();
+  } else {
+    ctx.shadowColor=COL.cyan; ctx.shadowBlur=16;
+    ctx.fillStyle=COL.cyan;
+    ctx.beginPath();
+    for(let i=0;i<8;i++){ const a=i/8*Math.PI*2-Math.PI/2; const rr=(i%2?r*0.6:r);
+      const px=cx+Math.cos(a)*rr, py=cy+Math.sin(a)*rr; i?ctx.lineTo(px,py):ctx.moveTo(px,py);}
+    ctx.closePath(); ctx.fill(); ctx.shadowBlur=0;
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx-2,cy-2,2,0,7); ctx.fill();
+  }
+}
+function drawStar(cx,cy,spikes,outer,inner,color){
+  ctx.beginPath();
+  for(let i=0;i<spikes*2;i++){ const a=i*Math.PI/spikes-Math.PI/2; const rr=i%2?inner:outer;
+    const px=cx+Math.cos(a)*rr, py=cy+Math.sin(a)*rr; i?ctx.lineTo(px,py):ctx.moveTo(px,py);}
+  ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+}
+function hexShade(hex,f){
+  const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  r=Math.min(255,Math.max(0,r*f))|0; g=Math.min(255,Math.max(0,g*f))|0; b=Math.min(255,Math.max(0,b*f))|0;
+  return 'rgb('+r+','+g+','+b+')';
+}
+function drawSnake(t){
+  const skin=SKINS[G.currentSkin];
+  const n=G.snake.length;
+  const ghost=shieldOn();
+  ctx.globalAlpha = ghost ? (0.4+0.2*Math.abs(Math.sin(performance.now()/160))) : 1;
+  for(let i=n-1;i>=0;i--){
+    const cur=G.snake[i];
+    const prev=G.prevSnake[i]||cur;
+    // interpolate unless wrapped (distance>1)
+    let ix=cur.x, iy=cur.y;
+    if(Math.abs(cur.x-prev.x)<=1 && Math.abs(cur.y-prev.y)<=1){
+      ix=lerp(prev.x,cur.x,t); iy=lerp(prev.y,cur.y,t);
+    }
+    const x=ix*G.cell, y=iy*G.cell, s=G.cell-2;
+    let color;
+    if(skin.rainbow){
+      const hue=(i*14 + t*10 + performance.now()/18)%360;
+      color='hsl('+hue+',75%,60%)';
+    } else {
+      const base=skin.color;
+      const ratio=0.5+0.5*(1-i/Math.max(1,n));
+      color=hexShade(base, 0.55+0.45*ratio);
+    }
+    if(i===0){ ctx.shadowColor=color; ctx.shadowBlur=14; }
+    ctx.fillStyle=color; roundRect(x+1,y+1,s,s,s*0.32); ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(255,255,255,.22)'; roundRect(x+3,y+3,s*0.4,s*0.4,4); ctx.fill();
+    if(i===0) drawEyes(x,y,s);
+  }
+  ctx.globalAlpha=1;
+}
+function drawEyes(x,y,s){
+  const d=G.dir, off=s*0.28, er=Math.max(2,s*0.12);
+  let e1,e2;
+  if(d.x===1){ e1=[x+s-off,y+off]; e2=[x+s-off,y+s-off]; }
+  else if(d.x===-1){ e1=[x+off,y+off]; e2=[x+off,y+s-off]; }
+  else if(d.y===-1){ e1=[x+off,y+off]; e2=[x+s-off,y+off]; }
+  else { e1=[x+off,y+s-off]; e2=[x+s-off,y+s-off]; }
+  for(const e of [e1,e2]){
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(e[0],e[1],er,0,7); ctx.fill();
+    ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(e[0]+d.x*er*0.4, e[1]+d.y*er*0.4, er*0.55,0,7); ctx.fill();
+  }
+}
+function drawParticles(){
+  for(const p of G.particles){
+    ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,Math.max(0,p.size),0,7); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+}
+function drawPowerup(){
+  if(!G.powerup) return;
+  const p=G.powerup, cfg=POWERUPS[p.kind];
+  const cx=(p.x+0.5)*G.cell, cy=(p.y+0.5)*G.cell, r=G.cell*0.42;
+  const t=performance.now(), pulse=1+Math.sin(t/150)*0.08;
+  ctx.globalAlpha = p.life<2000 ? (0.35+0.65*Math.abs(Math.sin(t/120))) : 1;
+  ctx.shadowColor=cfg.color; ctx.shadowBlur=18;
+  ctx.fillStyle=cfg.color;
+  roundRect(cx-r*pulse, cy-r*pulse, r*2*pulse, r*2*pulse, r*0.5); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(10,12,24,.9)';
+  ctx.font='bold '+Math.floor(G.cell*0.5)+'px -apple-system,Segoe UI,Arial';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(cfg.icon, cx, cy+1);
+  ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+  ctx.globalAlpha=1;
+}
+function render(t){
+  drawBackground();
+  if(!G.over && G.running){
+    for(const o of G.obstacles) drawObstacle(o);
+    drawFood();
+    drawPowerup();
+    drawSnake(t);
+    drawParticles();
+  }
+}
+
+// ---------- HUD ----------
+function updateHUD(){
+  document.getElementById('score').textContent=t('score')+': '+G.score;
+  document.getElementById('hi').textContent=t('high')+': '+G.high;
+  document.getElementById('level').textContent=t('level')+': '+G.level;
+  document.getElementById('coins').textContent='🪙 '+G.currency;
+  document.getElementById('combo').textContent=G.combo>1?('🔥 '+G.combo+'x'):'';
+  const d=document.getElementById('daily');
+  if(G.daily) d.textContent=G.dailyDone?t('dailyDone'):('🎯 '+dailyName(G.daily));
+}
+function dailyName(c){ const k='chall'+c.type.charAt(0).toUpperCase()+c.type.slice(1); return t(k).replace('{n}',c.target); }
+function applyLang(lang){
+  L = STRINGS[lang] || STRINGS.en; G.lang = STRINGS[lang]?lang:'en';
+  const set=(id,txt)=>{ const e=document.getElementById(id); if(e) e.textContent=txt; };
+  // Menu
+  document.querySelectorAll('.brand-sub').forEach(e=>{ if(!/v\d/.test(e.textContent)) e.textContent=t('premiumEdition'); });
+  const ms=document.querySelectorAll('.mstat small'); if(ms[0])ms[0].textContent=t('best'); if(ms[1])ms[1].textContent=t('coins'); if(ms[2])ms[2].textContent=t('streak');
+  const modes={classic:['classic','classicD'],obstacles:['obstacles','obstaclesD'],hardcore:['hardcore','hardcoreD'],timeattack:['timeattack','timeattackD']};
+  document.querySelectorAll('[data-mode]').forEach(b=>{ const m=modes[b.dataset.mode]; if(m){ const bb=b.querySelector('.mtext b'), sm=b.querySelector('.mtext small'); if(bb)bb.textContent=t(m[0]); if(sm)sm.textContent=t(m[1]); }});
+  set('menuShop',t('shop')); set('menuStats',t('stats')); set('menuSettings',t('settings')); set('btnInstall',t('installApp'));
+  const mh=document.getElementById('menuAbout'); if(mh){ mh.parentNode.childNodes[0].nodeValue=t('hint'); mh.textContent=t('about'); }
+  // Pause
+  set('btnResume',t('resume')); set('btnRestart',t('restart')); set('btnMenu',t('mainMenu'));
+  document.querySelectorAll('#ovPause h1').forEach(e=>e.textContent=t('paused'));
+  // Game over
+  document.querySelectorAll('#ovOver .go-big').forEach(e=>e.textContent=t('gameOver'));
+  const goStats=document.querySelectorAll('#ovOver .stat span'); if(goStats[0])goStats[0].textContent=t('score'); if(goStats[1])goStats[1].textContent=t('highScore'); if(goStats[2])goStats[2].textContent=t('levelReached');
+  set('btnAgain',t('playAgain')); set('btnOverMenu',t('menu')); set('btnShare',t('shareScore'));
+  set('btnRevive',t('continueAd')); set('btnX2',t('doubleAd'));
+  // Store static
+  document.querySelectorAll('#ovShop h1').forEach(e=>e.textContent=t('storeTitle'));
+  document.querySelectorAll('#ovShop .store-section').forEach(e=>e.textContent=t('skinsSection'));
+  set('btnShopClose',t('close'));
+  // Settings
+  document.querySelectorAll('#ovSet h1').forEach(e=>e.textContent=t('settings'));
+  const sl=document.querySelectorAll('#ovSet .set-item span'); const skeys=['setSound','setMusic','setVibration','setMotion','setTheme','language','setRemoveAds','setRestore','setRate','setReset','setAbout'];
+  sl.forEach((e,i)=>{ if(skeys[i]) e.textContent=t(skeys[i]); });
+  set('setRestore',t('restore')); set('setRate',t('rate')); set('setReset',t('reset')); set('setAbout',t('open'));
+  set('btnSetClose',t('close'));
+  // Stats
+  document.querySelectorAll('#ovStats h1')[0] && (document.querySelectorAll('#ovStats h1')[0].textContent=t('statsTitle'));
+  const stl=document.querySelectorAll('#ovStats .stat span'); const stk=['gamesPlayed','totalScore','bestScore','bestCombo','coinsEarned','timePlayed'];
+  stl.forEach((e,i)=>{ if(stk[i]) e.textContent=t(stk[i]); });
+  const sh=document.querySelectorAll('#ovStats h1'); if(sh[1])sh[1].textContent=t('topScores'); if(sh[2])sh[2].textContent=t('achievements');
+  set('btnStatsClose',t('close'));
+  // Reward + intro
+  document.querySelectorAll('#ovReward h1').forEach(e=>e.textContent=t('dailyReward'));
+  set('btnClaim',t('claim'));
+  document.querySelectorAll('#ovIntro h1').forEach(e=>e.textContent=t('welcome'));
+  const ir=document.querySelectorAll('#ovIntro .intro-row span'); [1,2,3,4].forEach((n,i)=>{ if(ir[i]) ir[i].innerHTML=t('intro'+n); });
+  set('btnIntro',t('letsPlay'));
+  // hint in game
+  const hint=document.getElementById('hint'); if(hint && hint.textContent) hint.textContent=t('hintInGame');
+  // refresh dynamic
+  updateHUD(); refreshMenu(); refreshSettings();
+  if(document.getElementById('ovShop').classList.contains('show')) renderShop();
+  if(document.getElementById('ovStats').classList.contains('show')) renderStats();
+  store.set('lang', G.lang);
+}
+function refreshMenu(){
+  document.getElementById('menuHigh').textContent=G.high;
+  document.getElementById('menuCoins').textContent=G.currency;
+  const r=store.get('reward',null);
+  document.getElementById('menuStreak').textContent=(r&&r.streak)?r.streak:0;
+}
+
+// ---------- Loop ----------
+function updateEffects(){
+  const now=performance.now(), items=[];
+  if(x2On())     items.push(['2×', G.x2Until, '#ffd54a']);
+  if(shieldOn()) items.push(['🛡', G.shieldUntil, '#5bd0ff']);
+  if(magnetOn()) items.push(['🧲', G.magnetUntil, '#ff6bd6']);
+  document.getElementById('fx').innerHTML = items.map(([ic,until,c])=>
+    '<span class="fxbadge" style="border-color:'+c+';color:'+c+'">'+ic+' '+Math.ceil((until-now)/1000)+'s</span>'
+  ).join('');
+}
+function frame(ts){
+  const dt=Math.min(50, ts-(G.lastTs||ts)); G.lastTs=ts;
+  update(dt);
+  const t=G.running&&!G.paused&&!G.over ? Math.min(1,G.stepAcc/G.stepMs) : 1;
+  render(G.settings.motion?1:t);
+  document.getElementById('slowmo').textContent = performance.now()<G.slowUntil?'SLOW-MO':'';
+  document.getElementById('timer').textContent = (G.mode==='timeattack'&&G.running&&!G.over) ? ('⏱ '+Math.ceil(G.timeLeft/1000)+'s') : '';
+  updateEffects();
+  requestAnimationFrame(frame);
+}
+
+// ---------- Overlays ----------
+function show(id){ document.getElementById(id).classList.add('show'); }
+function hide(id){ document.getElementById(id).classList.remove('show'); }
+function hideAll(){ ['ovMode','ovPause','ovOver','ovShop','ovSet','ovStats','ovReward','ovAbout','ovAd','ovBuy','ovIntro'].forEach(hide); }
+function showGameUI(v){
+  document.getElementById('hud').style.display = v?'grid':'none';
+  document.getElementById('toolbar').style.display = v?'flex':'none';
+}
+function toMenu(){ G.running=false; Music.stop(); showGameUI(false); refreshMenu(); hideAll(); show('ovMode'); }
+
+// ---------- Monetization hooks (rewarded ads + IAP) ----------
+// Ads are SIMULATED here. To go live, replace the body of playAd() with a real
+// rewarded-ad SDK call (Google AdMob via a WebView bridge, or an HTML5 ad network)
+// and only invoke onReward() when the user actually finished watching.
+const Ads = { removed:false };
+let _adTimer=null;
+function playAd(title, body, onReward){
+  if(Ads.removed){ onReward(); return; }        // ad-free users skip straight to the reward
+  if(window.SnakeNative && window.SnakeNative.isNative){   // real rewarded ad on device
+    window.SnakeNative.showRewarded().then(ok=>{ if(ok) onReward(); });
+    return;
+  }
+  Sound.init();
+  document.getElementById('adTitle').textContent=title;
+  document.getElementById('adBody').textContent=body;
+  const bar=document.getElementById('adBar'), claim=document.getElementById('adClaim');
+  bar.style.width='0%'; claim.disabled=true; claim.textContent='Please wait…';
+  show('ovAd');
+  let p=0; clearInterval(_adTimer);
+  _adTimer=setInterval(()=>{ p+=4; bar.style.width=Math.min(100,p)+'%';
+    if(p>=100){ clearInterval(_adTimer); claim.disabled=false; claim.textContent='Get reward ✓'; }
+  }, 90);
+  claim.onclick=()=>{ clearInterval(_adTimer); hide('ovAd'); onReward(); };
+  document.getElementById('adCancel').onclick=()=>{ clearInterval(_adTimer); hide('ovAd'); };
+}
+// ---------- In-app purchases ----------
+// In the web/demo build a purchase is confirmed in a sheet and granted locally (no real charge).
+// For a real release, replace the Buy action in openBuy() with a native billing call
+// (Google Play Billing / RevenueCat via Capacitor) and call grantPurchase(id) only on success.
+let _pendingBuy=null;
+function openBuy(id){
+  const p=IAP_PRODUCTS[id]; if(!p) return;
+  _pendingBuy=id;
+  document.getElementById('buyName').textContent=p.name;
+  document.getElementById('buyDesc').textContent=p.desc||'';
+  document.getElementById('buyPrice').textContent=p.price;
+  show('ovBuy');
+}
+function grantPurchase(id){
+  if(id==='premium'){ G.premium=true; Ads.removed=true; store.set('premium',true); store.set('noads',true);
+    G.skinsUnlocked['galaxy']=true; store.set('unlocked',G.skinsUnlocked);
+    G.currency+=500; store.set('currency',G.currency); }
+  else if(id==='noads'){ Ads.removed=true; store.set('noads',true); }
+  else if(id==='coins1000'){ G.currency+=1000; store.set('currency',G.currency); }
+  else if(id==='coins6000'){ G.currency+=6000; store.set('currency',G.currency); }
+  else if(id==='skin_aurora'){ G.skinsUnlocked['aurora']=true; G.currentSkin='aurora';
+    store.set('unlocked',G.skinsUnlocked); store.set('skin','aurora'); }
+  Sound.buy(); vibe(25);
+  notify('✓ '+((IAP_PRODUCTS[id]||{}).name||'Purchased'), COL.green);
+  updateHUD(); refreshMenu();
+}
+const IAP = { purchase(id){
+  const N=window.SnakeNative;
+  if(N && N.isNative && N.storeReady){    // real store billing on device (keys configured)
+    N.purchase(id).then(r=>{ if(r && r.ok) grantPurchase(id); else if(r && r.reason==='not-configured') openBuy(id); });
+    return;
+  }
+  openBuy(id);   // web OR free build without keys -> demo purchase sheet
+}};
+
+function revive(){
+  const mid=Math.floor(GRID/2);
+  G.snake=[{x:mid,y:mid},{x:mid-1,y:mid},{x:mid-2,y:mid}];
+  G.prevSnake=G.snake.map(s=>({...s}));
+  G.dir={x:1,y:0}; G.nextDir={x:1,y:0}; G.grow=0; G.combo=0;
+  G.obstacles=G.obstacles.filter(o=>Math.abs(o.x-mid)>2 || Math.abs(o.y-mid)>2);
+  G.shieldUntil=performance.now()+3000;      // brief invulnerability on revive
+  G.over=false; G.running=true; G.revived=true;
+  hide('ovOver'); showGameUI(true); Music.start(); G.lastTs=performance.now();
+}
+
+// ---------- Shop ----------
+function renderShop(){
+  document.getElementById('shopCoins').textContent='🪙 '+G.currency+' coins';
+  // --- IAP section (premium / remove ads / coin packs) ---
+  const ex=document.getElementById('storeExtras'); ex.innerHTML='';
+  if(!G.premium){
+    const p=IAP_PRODUCTS.premium;
+    const b=document.createElement('div'); b.className='store-banner';
+    b.innerHTML='<div class="sb-title">⭐ '+t('fullVersion')+'</div><div class="sb-desc">'+p.desc+'</div>';
+    const buy=document.createElement('button'); buy.className='primary'; buy.textContent=p.price;
+    buy.onclick=()=>IAP.purchase('premium'); b.appendChild(buy); ex.appendChild(b);
+  } else {
+    const b=document.createElement('div'); b.className='store-banner owned';
+    b.innerHTML='<div class="sb-title">⭐ '+t('fullVersion')+'</div><div class="sb-desc">'+t('fullVersionThanks')+'</div>'; ex.appendChild(b);
+  }
+  if(!G.premium && !Ads.removed){
+    ex.appendChild(iapRow('noads'));
+  }
+  ex.appendChild(iapRow('coins1000'));
+  ex.appendChild(iapRow('coins6000'));
+  // --- Skins ---
+  const list=document.getElementById('shopList'); list.innerHTML='';
+  for(const id in SKINS){
+    const sk=SKINS[id], owned=!!G.skinsUnlocked[id], eq=G.currentSkin===id;
+    const row=document.createElement('div'); row.className='shop-item';
+    const sw=document.createElement('div'); sw.className='swatch';
+    sw.style.background = sk.rainbow?'conic-gradient(red,orange,yellow,green,cyan,blue,violet,red)'
+      : sk.iap?'linear-gradient(135deg,#3affc8,#3a8dff)'
+      : sk.premium?'linear-gradient(135deg,#8a7dff,#c86bff)' : sk.color;
+    const name=document.createElement('div'); name.className='name';
+    name.innerHTML=sk.name+((sk.premium||sk.iap)?' <span class="tag" style="color:var(--accent)">★</span>':'');
+    const btn=document.createElement('button');
+    if(eq){ btn.textContent=t('equipped'); btn.disabled=true; btn.classList.add('tag'); }
+    else if(owned){ btn.textContent=t('equip'); btn.onclick=()=>{ G.currentSkin=id; store.set('skin',id); Sound.eat(); renderShop(); }; }
+    else if(sk.iap){ btn.textContent=sk.iapPrice; btn.onclick=()=>IAP.purchase(sk.iap); }
+    else if(sk.premium){ btn.textContent='Full Version'; btn.onclick=()=>IAP.purchase('premium'); }
+    else { btn.textContent='🪙 '+sk.price; btn.onclick=()=>buySkin(id); }
+    row.append(sw,name,btn); list.appendChild(row);
+  }
+}
+function iapRow(id){
+  const p=IAP_PRODUCTS[id];
+  const row=document.createElement('div'); row.className='shop-item';
+  const name=document.createElement('div'); name.className='name';
+  name.innerHTML=p.name+(p.badge?' <span class="tag">'+p.badge+'</span>':'');
+  const btn=document.createElement('button'); btn.className='primary'; btn.textContent=p.price;
+  btn.onclick=()=>IAP.purchase(id);
+  row.append(name,btn); return row;
+}
+function buySkin(id){
+  const sk=SKINS[id];
+  if(G.currency>=sk.price){
+    G.currency-=sk.price; G.skinsUnlocked[id]=true; G.currentSkin=id;
+    store.set('currency',G.currency); store.set('unlocked',G.skinsUnlocked); store.set('skin',id);
+    Sound.buy(); notify('Unlocked '+sk.name+'!', COL.green); updateHUD(); renderShop();
+  } else { Sound.denied(); notify('Not enough coins', COL.red); }
+}
+
+// ---------- Input ----------
+// Keyed by physical key code so WASD works on ANY keyboard layout
+// (e.g. Russian ЙЦУКЕН), not just US-English.
+const CODEMAP={
+  ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0],
+  KeyW:[0,-1], KeyS:[0,1], KeyA:[-1,0], KeyD:[1,0]
+};
+window.addEventListener('keydown',e=>{
+  Sound.init();
+  if(CODEMAP[e.code]){ setDir(CODEMAP[e.code][0],CODEMAP[e.code][1]); e.preventDefault(); }
+  else if(e.code==='KeyP'){ togglePause(); }
+  else if(e.code==='Space'){ if(G.over) startGame(G.mode); e.preventDefault(); }
+});
+let touchStart=null;
+canvas.addEventListener('touchstart',e=>{ Sound.init(); touchStart=e.changedTouches[0]; },{passive:true});
+canvas.addEventListener('touchend',e=>{
+  if(!touchStart) return;
+  const t=e.changedTouches[0], dx=t.clientX-touchStart.clientX, dy=t.clientY-touchStart.clientY;
+  if(Math.abs(dx)<20&&Math.abs(dy)<20){ touchStart=null; return; }
+  if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?1:-1,0); else setDir(0,dy>0?1:-1);
+  touchStart=null;
+},{passive:true});
+// mouse drag as swipe (desktop)
+let mouseStart=null;
+canvas.addEventListener('mousedown',e=>{ Sound.init(); mouseStart={x:e.clientX,y:e.clientY}; });
+canvas.addEventListener('mouseup',e=>{
+  if(!mouseStart) return;
+  const dx=e.clientX-mouseStart.x, dy=e.clientY-mouseStart.y;
+  if(Math.abs(dx)>25||Math.abs(dy)>25){ if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?1:-1,0); else setDir(0,dy>0?1:-1); }
+  mouseStart=null;
+});
+
+function togglePause(){
+  if(!G.running||G.over) return;
+  G.paused=!G.paused;
+  if(G.paused) show('ovPause'); else hide('ovPause');
+}
+
+// ---------- Wire UI ----------
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ Sound.init(); startGame(b.dataset.mode); });
+document.getElementById('btnPause').onclick=togglePause;
+document.getElementById('btnResume').onclick=()=>{ G.paused=false; hide('ovPause'); Music.start(); };
+document.getElementById('btnRestart').onclick=()=>startGame(G.mode);
+document.getElementById('btnMenu').onclick=toMenu;
+document.getElementById('btnAgain').onclick=()=>startGame(G.mode);
+document.getElementById('btnOverMenu').onclick=toMenu;
+// Open panels from either the in-game toolbar OR the main menu.
+function openShop(){ renderShop(); if(G.running&&!G.over)G.paused=true; show('ovShop'); }
+function openStats(){ renderStats(); if(G.running&&!G.over)G.paused=true; show('ovStats'); }
+function openSettings(){ refreshSettings(); if(G.running&&!G.over)G.paused=true; show('ovSet'); }
+document.getElementById('btnShop').onclick=openShop;
+document.getElementById('menuShop').onclick=openShop;
+document.getElementById('btnStats').onclick=openStats;
+document.getElementById('menuStats').onclick=openStats;
+document.getElementById('btnSettings').onclick=openSettings;
+document.getElementById('menuSettings').onclick=openSettings;
+document.getElementById('btnShopClose').onclick=()=>{ hide('ovShop'); if(G.running&&!G.over){G.paused=false;} };
+document.getElementById('btnSetClose').onclick=()=>{ hide('ovSet'); if(G.running&&!G.over){G.paused=false;} };
+document.getElementById('btnStatsClose').onclick=()=>{ hide('ovStats'); if(G.running&&!G.over){G.paused=false;} };
+document.getElementById('btnShare').onclick=shareScore;
+document.getElementById('setAbout').onclick=()=>{ hide('ovSet'); show('ovAbout'); };
+document.getElementById('btnAboutClose').onclick=()=>{ hide('ovAbout'); if(G.running&&!G.over) show('ovSet'); else show('ovMode'); };
+document.getElementById('menuAbout').onclick=()=>{ show('ovAbout'); };
+document.getElementById('btnRevive').onclick=()=>playAd('Continue?','Watch a short ad to keep playing from the center.', revive);
+document.getElementById('btnX2').onclick=()=>playAd('Double coins','Watch a short ad to double the coins from this run.', ()=>{
+  G.currency+=G.earnedThisRun; store.set('currency',G.currency); updateHUD();
+  notify('🪙 +'+G.earnedThisRun+' coins', COL.green);
+  document.getElementById('rowX2').style.display='none';
+});
+document.getElementById('setNoAds').onclick=()=>{ if(!Ads.removed) IAP.purchase(G.premium?'premium':'noads'); };
+document.getElementById('buyConfirm').onclick=()=>{ if(_pendingBuy){ grantPurchase(_pendingBuy); _pendingBuy=null; } hide('ovBuy'); renderShop(); refreshSettings(); };
+document.getElementById('buyCancel').onclick=()=>{ _pendingBuy=null; hide('ovBuy'); };
+document.getElementById('setRestore').onclick=()=>{
+  if(window.SnakeNative && window.SnakeNative.isNative){
+    window.SnakeNative.restore().then(ids=>{ (ids||[]).forEach(grantPurchase);
+      notify((ids&&ids.length)?'Purchases restored ✓':'Nothing to restore', COL.green); refreshSettings(); });
+  } else notify('Available in the app version', COL.yellow);
+};
+document.getElementById('setRate').onclick=()=>{ if(window.SnakeNative){ window.SnakeNative.rate(); } };
+document.getElementById('btnIntro').onclick=()=>{ store.set('seenIntro',true); hide('ovIntro'); Sound.init(); checkDailyReward(); };
+
+document.getElementById('setSound').onclick=()=>{ G.settings.sound=!G.settings.sound; Sound.enabled=G.settings.sound; store.set('settings',G.settings); refreshSettings(); if(G.settings.sound)Sound.eat(); };
+document.getElementById('setMusic').onclick=()=>{ G.settings.music=!G.settings.music; store.set('settings',G.settings); refreshSettings(); if(G.settings.music) Music.start(); else Music.stop(); };
+document.getElementById('setHaptics').onclick=()=>{ G.settings.haptics=!G.settings.haptics; store.set('settings',G.settings); refreshSettings(); vibe(25); };
+document.getElementById('setMotion').onclick=()=>{ G.settings.motion=!G.settings.motion; store.set('settings',G.settings); refreshSettings(); };
+document.getElementById('setTheme').onclick=()=>{ const i=(THEME_KEYS.indexOf(G.theme)+1)%THEME_KEYS.length; applyTheme(THEME_KEYS[i]); store.set('theme',G.theme); refreshSettings(); Sound.eat(); };
+document.getElementById('setLang').onclick=()=>{ applyLang(G.lang==='ru'?'en':'ru'); Sound.eat(); };
+document.getElementById('setReset').onclick=()=>{
+  if(confirm('Reset all progress (high score, coins, skins, stats)?')){
+    ['high','currency','unlocked','skin','ach','daily','settings','stats','reward','scores','noads','theme','premium','seenIntro','lang'].forEach(k=>{try{localStorage.removeItem('snake_'+k);}catch(e){}});
+    location.reload();
+  }
+};
+function refreshSettings(){
+  document.getElementById('setSound').textContent=G.settings.sound?t('on'):t('off');
+  document.getElementById('setMusic').textContent=G.settings.music?t('on'):t('off');
+  document.getElementById('setHaptics').textContent=G.settings.haptics?t('on'):t('off');
+  document.getElementById('setMotion').textContent=G.settings.motion?t('on'):t('off');
+  const na=document.getElementById('setNoAds'); na.textContent=Ads.removed?t('owned'):t('buy'); na.disabled=Ads.removed;
+  document.getElementById('setTheme').textContent=THEMES[G.theme].name;
+  const lg=document.getElementById('setLang'); if(lg) lg.textContent=(G.lang==='ru'?'Русский':'English');
+}
+
+// ---------- Stats & achievements ----------
+function renderStats(){
+  const st=G.stats;
+  document.getElementById('stGames').textContent=st.games;
+  document.getElementById('stTotal').textContent=st.total;
+  document.getElementById('stBest').textContent=G.high;
+  document.getElementById('stCombo').textContent=st.combo+'x';
+  document.getElementById('stCoins').textContent='🪙 '+st.coins;
+  document.getElementById('stTime').textContent=Math.floor(st.time/60000)+'m';
+  const lb=store.get('scores',[]); const lbEl=document.getElementById('lbList');
+  lbEl.innerHTML = lb.length ? lb.map(s=>'<li><span>'+s+'</span></li>').join('')
+                             : '<div class="lb-empty">'+t('noScores')+'</div>';
+  const list=document.getElementById('achList'); list.innerHTML='';
+  for(const id in ACH){
+    const a=ACH[id], got=!!G.achievements[id];
+    const row=document.createElement('div'); row.className='set-item';
+    row.innerHTML='<span style="flex:1">'+(got?'🏆 ':'🔒 ')+a.name+
+      ' <small style="color:var(--muted)">— '+a.desc+'</small></span>'+
+      '<span class="tag" style="color:'+(got?'var(--green)':'var(--muted)')+'">'+(got?t('unlocked'):t('locked'))+'</span>';
+    list.appendChild(row);
+  }
+}
+
+// ---------- Share ----------
+function shareScore(){
+  const text='I scored '+G.score+' in Snake — Premium! 🐍 Can you beat me?';
+  if(navigator.share){ navigator.share({title:'Snake — Premium', text, url:location.href}).catch(()=>{}); }
+  else if(navigator.clipboard){ navigator.clipboard.writeText(text+' '+location.href)
+    .then(()=>notify('Copied to clipboard!',COL.green)).catch(()=>notify(text,COL.yellow)); }
+  else notify(text, COL.yellow);
+}
+
+// ---------- Daily login reward ----------
+function checkDailyReward(){
+  const today=todayKey();
+  const r=store.get('reward', null);
+  if(r && r.date===today) return; // already claimed today
+  const y=new Date(Date.now()-86400000);
+  const ykey=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate();
+  const streak=(r && r.date===ykey)? (r.streak||1)+1 : 1;
+  const amount=Math.min(50+(streak-1)*25, 250);
+  G._pendingReward={amount, streak, today};
+  document.getElementById('rwStreak').textContent=t('dayStreak').replace('{n}',streak);
+  document.getElementById('rwAmount').textContent='🪙 +'+amount;
+  show('ovReward');
+}
+document.getElementById('btnClaim').onclick=()=>{
+  Sound.init();
+  const p=G._pendingReward;
+  if(p){ G.currency+=p.amount; store.set('currency',G.currency);
+    store.set('reward',{date:p.today, streak:p.streak}); updateHUD(); refreshMenu(); Sound.buy(); vibe(25); }
+  hide('ovReward');
+};
+
+// ---------- Install prompt (PWA) ----------
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredPrompt=e;
+  const b=document.getElementById('btnInstall'); if(b) b.style.display='block'; });
+document.getElementById('btnInstall').onclick=async ()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt(); try{ await deferredPrompt.userChoice; }catch(e){}
+  deferredPrompt=null; document.getElementById('btnInstall').style.display='none';
+};
+
+// ---------- Pause when tab hidden ----------
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden && G.running && !G.over && !G.paused){ G.paused=true; show('ovPause'); Music.stop(); }
+});
+
+// ---------- Boot ----------
+function load(){
+  G.high=store.get('high',0);
+  G.currency=store.get('currency',0);
+  G.currentSkin=store.get('skin','classic');
+  G.skinsUnlocked=Object.assign({classic:true}, store.get('unlocked',{}));
+  if(!G.skinsUnlocked[G.currentSkin]) G.currentSkin='classic';
+  G.achievements=store.get('ach',{});
+  G.settings=Object.assign({sound:true,music:false,haptics:true,motion:false}, store.get('settings',{}));
+  G.stats=Object.assign({games:0,total:0,combo:0,coins:0,time:0}, store.get('stats',{}));
+  G.premium=store.get('premium', false);
+  Ads.removed=store.get('noads', false) || G.premium;
+  G.lang=store.get('lang', null) || ((navigator.language||'en').toLowerCase().indexOf('ru')===0?'ru':'en');
+  applyTheme(store.get('theme','default'));
+  Sound.enabled=G.settings.sound;
+  loadDaily();
+}
+load(); resize(); updateHUD(); refreshMenu(); showGameUI(false); applyLang(G.lang);
+if(!store.get('seenIntro', false)){ show('ovIntro'); } else { checkDailyReward(); }
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+// Native app integration (Capacitor): hide splash + Android hardware back button.
+if(window.SnakeNative){
+  window.SnakeNative.hideSplash();
+  window.snakeBackButton=function(){
+    const overlays=['ovBuy','ovAd','ovAbout','ovStats','ovSet','ovShop','ovReward'];
+    for(const id of overlays){ if(document.getElementById(id).classList.contains('show')){ hide(id); return; } }
+    if(G.running && !G.over){ togglePause(); return; }
+    if(!document.getElementById('ovMode').classList.contains('show')){ toMenu(); return; }
+    if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App){ window.Capacitor.Plugins.App.exitApp(); }
+  };
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

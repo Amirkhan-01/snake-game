@@ -1,0 +1,21 @@
+# deps / build artifacts
+/node_modules
+/dist
+/android/app/build
+/android/build
+/android/.gradle
+/android/local.properties
+/android/app/release
+*.keystore
+*.jks
+
+# desktop-game runtime saves (user data, not source)
+/high_score.json
+/currency.json
+/achievements.json
+/daily_challenge.json
+/skins.json
+/settings.json
+
+# python
+__pycache__/
