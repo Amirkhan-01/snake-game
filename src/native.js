@@ -14,11 +14,15 @@ import { App } from '@capacitor/app';
 
 const CONFIG = {
   packageId: 'com.snakepremium.game',
-  // RevenueCat public SDK key (Android starts with "goog_", iOS with "appl_")
-  revenueCatApiKey: 'goog_REPLACE_WITH_YOUR_KEY',
-  // AdMob rewarded ad unit id (create in AdMob console). Test id used as placeholder.
-  rewardedAdUnitId: 'ca-app-pub-3940256099942544/5224354917',   // <-- Google TEST id
-  interstitialAdUnitId: 'ca-app-pub-3940256099942544/1033173712', // <-- Google TEST id
+  // RevenueCat SDK key. Real Android billing needs the "goog_..." key (Project ->
+  // API Keys) AND a finished Play Store config (service account JSON, which needs a
+  // Google Play Console account). Until a goog_ key is set, the game falls back to
+  // its built-in demo purchase flow — see STORE_READY below.
+  revenueCatApiKey: 'test_bHnpRwaIWsuTQSsKaoPfRFLpnzO',   // RevenueCat TEST-store key
+  // AdMob. NOTE: the App ID in android/app/src/main/AndroidManifest.xml must match
+  // the same publisher, otherwise ads will not serve.
+  rewardedAdUnitId: 'ca-app-pub-7978127632650379/5662982647',      // real rewarded unit
+  interstitialAdUnitId: 'ca-app-pub-3940256099942544/1033173712',  // <-- Google TEST id
   // Map the game's internal product ids -> the product ids you create in the store.
   PRODUCTS: {
     premium:     'premium',
@@ -32,7 +36,9 @@ const CONFIG = {
 const isNative = Capacitor.isNativePlatform();
 // Until you paste real keys, the build runs FREE & fully playable:
 // Google TEST ads are shown, and purchases fall back to the in-app demo flow.
-const STORE_READY = CONFIG.revenueCatApiKey.indexOf('REPLACE') === -1;
+// Real billing only once a production Android key ("goog_...") is set AND the Play
+// Store config is finished in RevenueCat. A "test_..." key is not enough.
+const STORE_READY = /^goog_/.test(CONFIG.revenueCatApiKey);
 const TEST_ADS = /3940256099942544/.test(CONFIG.rewardedAdUnitId); // Google's test ad ids
 
 const Native = {

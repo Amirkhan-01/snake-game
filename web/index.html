@@ -429,6 +429,20 @@
     </div>
   </div>
 
+  <!-- iOS install instructions (Safari has no beforeinstallprompt) -->
+  <div class="overlay" id="ovInstall">
+    <div class="card center">
+      <h1 id="insTitle">📲 Install the game</h1>
+      <div style="text-align:left;margin-top:8px">
+        <div class="intro-row"><b>1.</b> <span id="insStep1">Tap the Share button at the bottom of Safari</span></div>
+        <div class="intro-row"><b>2.</b> <span id="insStep2">Choose “Add to Home Screen”</span></div>
+        <div class="intro-row"><b>3.</b> <span id="insStep3">Done — it opens like a real app, works offline</span></div>
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:14px" id="insHint">Opened from another app? Tap “Open in Safari” first.</p>
+      <div class="row"><button class="primary" id="btnInsClose">OK</button></div>
+    </div>
+  </div>
+
   <!-- Rewarded ad (simulated placeholder) -->
   <div class="overlay" id="ovAd">
     <div class="card center">
@@ -524,6 +538,12 @@ const STRINGS = {
     noScores:'No scores yet — play a round!', locked:'Locked', unlocked:'Unlocked',
     dailyReward:'🎁 Daily Reward', dayStreak:'Day {n} streak', claim:'Claim',
     welcome:'Welcome!', letsPlay:"Let's play 🐍",
+    insTitle:'📲 Install the game',
+    insStep1:'Tap the <b>Share</b> button at the bottom of Safari',
+    insStep2:'Choose <b>“Add to Home Screen”</b>',
+    insStep3:'Done — it opens like a real app and works offline',
+    insHint:'Opened from Telegram/Instagram? Tap “Open in Safari” first — in-app browsers can’t install.',
+    insOk:'Got it',
     intro1:'Eat food to grow. Chain quick bites for a <b>combo</b> bonus.',
     intro2:'Grab power-ups: 🛡 shield, <b>2×</b> score, 🧲 magnet.',
     intro3:'Move by <b>swipe</b>, <b>arrows</b> or <b>WASD</b>. Avoid walls &amp; yourself.',
@@ -559,6 +579,12 @@ const STRINGS = {
     noScores:'Пока пусто — сыграй партию!', locked:'Закрыто', unlocked:'Открыто',
     dailyReward:'🎁 Ежедневная награда', dayStreak:'Серия: {n} дн.', claim:'Забрать',
     welcome:'Добро пожаловать!', letsPlay:'Играть 🐍',
+    insTitle:'📲 Установить игру',
+    insStep1:'Нажми кнопку <b>«Поделиться»</b> внизу Safari',
+    insStep2:'Выбери <b>«На экран „Домой“»</b>',
+    insStep3:'Готово — откроется как приложение и работает офлайн',
+    insHint:'Открыл из Telegram/Instagram? Сначала нажми «Открыть в Safari» — из встроенного браузера установка невозможна.',
+    insOk:'Понятно',
     intro1:'Ешь еду, чтобы расти. Быстрые укусы подряд дают <b>комбо</b>-бонус.',
     intro2:'Собирай усилители: 🛡 щит, <b>2×</b> очки, 🧲 магнит.',
     intro3:'Управление: <b>свайп</b>, <b>стрелки</b> или <b>WASD</b>. Не врезайся в стены и себя.',
@@ -1142,6 +1168,10 @@ function applyLang(lang){
   document.querySelectorAll('#ovIntro h1').forEach(e=>e.textContent=t('welcome'));
   const ir=document.querySelectorAll('#ovIntro .intro-row span'); [1,2,3,4].forEach((n,i)=>{ if(ir[i]) ir[i].innerHTML=t('intro'+n); });
   set('btnIntro',t('letsPlay'));
+  // Install instructions (iOS)
+  set('insTitle',t('insTitle'));
+  [1,2,3].forEach(n=>{ const e=document.getElementById('insStep'+n); if(e) e.innerHTML=t('insStep'+n); });
+  set('insHint',t('insHint')); set('btnInsClose',t('insOk'));
   // hint in game
   const hint=document.getElementById('hint'); if(hint && hint.textContent) hint.textContent=t('hintInGame');
   // refresh dynamic
@@ -1181,7 +1211,7 @@ function frame(ts){
 // ---------- Overlays ----------
 function show(id){ document.getElementById(id).classList.add('show'); }
 function hide(id){ document.getElementById(id).classList.remove('show'); }
-function hideAll(){ ['ovMode','ovPause','ovOver','ovShop','ovSet','ovStats','ovReward','ovAbout','ovAd','ovBuy','ovIntro'].forEach(hide); }
+function hideAll(){ ['ovMode','ovPause','ovOver','ovShop','ovSet','ovStats','ovReward','ovAbout','ovAd','ovBuy','ovIntro','ovInstall'].forEach(hide); }
 function showGameUI(v){
   document.getElementById('hud').style.display = v?'grid':'none';
   document.getElementById('toolbar').style.display = v?'flex':'none';
@@ -1474,15 +1504,26 @@ document.getElementById('btnClaim').onclick=()=>{
   hide('ovReward');
 };
 
-// ---------- Install prompt (PWA) ----------
+// ---------- Install (PWA) ----------
+// Chrome/Edge fire `beforeinstallprompt`. iOS Safari does NOT support it, so there
+// we always offer the button and show manual "Add to Home Screen" instructions.
 let deferredPrompt=null;
-window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredPrompt=e;
-  const b=document.getElementById('btnInstall'); if(b) b.style.display='block'; });
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+              (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+                     navigator.standalone===true;
+function showInstallBtn(v){ const b=document.getElementById('btnInstall'); if(b) b.style.display=v?'block':'none'; }
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredPrompt=e; showInstallBtn(true); });
 document.getElementById('btnInstall').onclick=async ()=>{
-  if(!deferredPrompt) return;
-  deferredPrompt.prompt(); try{ await deferredPrompt.userChoice; }catch(e){}
-  deferredPrompt=null; document.getElementById('btnInstall').style.display='none';
+  if(deferredPrompt){                    // Android / desktop Chrome: native prompt
+    deferredPrompt.prompt(); try{ await deferredPrompt.userChoice; }catch(e){}
+    deferredPrompt=null; showInstallBtn(false); return;
+  }
+  show('ovInstall');                     // iOS & others: manual instructions
 };
+document.getElementById('btnInsClose').onclick=()=>hide('ovInstall');
+window.addEventListener('appinstalled', ()=>showInstallBtn(false));
+if(isIOS && !isStandalone) showInstallBtn(true);   // iOS never fires the prompt
 
 // ---------- Pause when tab hidden ----------
 document.addEventListener('visibilitychange', ()=>{
