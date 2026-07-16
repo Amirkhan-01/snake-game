@@ -1,5 +1,5 @@
 /* Service worker: offline support for the Snake PWA. */
-const CACHE = 'snake-v17';
+const CACHE = 'snake-v18';
 const ASSETS = [
   './', './index.html', './native.js', './privacy.html', './terms.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './icon-maskable.png', './apple-touch-icon.png',

@@ -1,0 +1,6 @@
+# app-ads.txt — authorizes Google AdMob to sell this app's ad inventory.
+# Must be reachable at the ROOT of the developer website you list on the Play
+# Store (e.g. https://your-domain/app-ads.txt). web/ is the Vercel root, so it
+# is served at /app-ads.txt automatically. Publisher id is derived from the
+# AdMob App ID ca-app-pub-7978127632650379~... -> pub-7978127632650379.
+google.com, pub-7978127632650379, DIRECT, f08c47fec0942fa0

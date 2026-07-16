@@ -277,6 +277,7 @@
         <button id="menuStats">📊 Stats</button>
         <button id="menuSettings">⚙ Settings</button>
       </div>
+      <button id="menuRewards" class="primary" style="margin-top:10px;width:100%;background:linear-gradient(135deg,#f1c40f,#e67e22)">🎁 Rewards</button>
       <button id="btnInstall" class="primary" style="display:none;margin-top:10px;width:100%">📲 Install app</button>
       <div class="menu-hint">Swipe · Arrows · WASD to move · <a id="menuAbout" style="color:var(--accent);cursor:pointer">About</a></div>
     </div>
@@ -332,6 +333,10 @@
         <button id="setHaptics">On</button></div>
       <div class="set-item"><span style="flex:1">Reduced motion</span>
         <button id="setMotion">Off</button></div>
+      <div class="set-item"><span style="flex:1">Trail</span>
+        <button id="setTrail">Off</button></div>
+      <div class="set-item"><span style="flex:1">Swipe sensitivity</span>
+        <button id="setSwipe">Medium</button></div>
       <div class="set-item"><span style="flex:1">Theme</span>
         <button id="setTheme">Indigo</button></div>
       <div class="set-item"><span style="flex:1">Language</span>
@@ -375,6 +380,15 @@
       <h2 id="rwStreak">Day 1 streak</h2>
       <p style="font-size:40px;font-weight:900;color:var(--yellow);margin:10px 0" id="rwAmount">🪙 +50</p>
       <div class="row"><button class="primary" id="btnClaim">Claim</button></div>
+    </div>
+  </div>
+
+  <!-- Rewards hub (daily bonus, free coins via ad, weekly mission) -->
+  <div class="overlay" id="ovRewards">
+    <div class="card">
+      <h1 id="rewardsTitle">🎁 Rewards</h1>
+      <div id="rewardsBody"></div>
+      <div class="row"><button class="primary" id="btnRewardsClose">Close</button></div>
     </div>
   </div>
 
@@ -491,6 +505,8 @@ const MIN_STEP = 65;
 const SLOW_FACTOR = 1.8;
 const SURVIVOR_MS = 120000;
 const MAGNET_SPEED = 9;          // magnet fly-in speed, cells per second (higher = faster)
+const FREE_COINS_COOLDOWN = 30*60*1000;  // rewarded "free coins" available every 30 min
+const FREE_COINS_AMOUNT = 40;
 
 const COL = {
   green:'#2ecc71', red:'#e74c3c', blue:'#3498db', yellow:'#f1c40f',
@@ -504,6 +520,9 @@ const SKINS = {
   gold:   {name:'Gold',    color:'#ffd700', price:200},
   neon:   {name:'Neon',    color:'#ff00ff', price:300},
   rainbow:{name:'Rainbow', color:null, price:500, rainbow:true},
+  emerald:{name:'Emerald', color:'#2ee6a0', price:250},
+  sunset: {name:'Sunset',  color:'#ff5e62', price:350},
+  cobalt: {name:'Cobalt',  color:'#3a6bff', price:400},
   // Premium skins (real-money): galaxy comes with Full Version, aurora is a direct purchase.
   galaxy: {name:'Galaxy',  color:'#8a7dff', premium:true},
   aurora: {name:'Aurora',  color:'#3affc8', iap:'skin_aurora', iapPrice:'$1.49'},
@@ -561,6 +580,13 @@ const STRINGS = {
     daily:'Daily', dailyDone:'🎯 Done ✓', language:'Language',
     challScore:'Score {n} points', challCombo:'Reach {n}x combo', challLevel:'Reach level {n}', challSurvival:'Survive {n} seconds',
     hintInGame:'Swipe or use arrow keys',
+    setTrail:'Trail', setSwipe:'Swipe sensitivity', swLow:'Low', swMed:'Medium', swHigh:'High',
+    rewards:'🎁 Rewards', rewardsTitle:'🎁 Rewards',
+    dailyBonus2:'Daily Bonus', dailyBonusDesc:'A free coin gift, once a day', open2:'Open 🎁',
+    freeCoins:'Free coins', freeCoinsDesc:'Watch a short ad, get coins', watchGet:'🎬 Watch & get',
+    readyIn:'Ready in', comeBackTomorrow:'Come back tomorrow', claimed:'Claimed ✓',
+    weeklyMission:'Weekly mission', weeklyDoneMsg:'Weekly done!',
+    ratePrompt:'Enjoying Snake? Rate us on the store ⭐',
   },
   ru: {
     premiumEdition:'Премиум-издание', best:'Рекорд', coins:'Монеты', streak:'Серия',
@@ -603,6 +629,13 @@ const STRINGS = {
     daily:'Задание', dailyDone:'🎯 Готово ✓', language:'Язык',
     challScore:'Набери {n} очков', challCombo:'Комбо {n}x', challLevel:'Достигни {n} уровня', challSurvival:'Продержись {n} сек.',
     hintInGame:'Свайп или стрелки',
+    setTrail:'След', setSwipe:'Чувствительность свайпа', swLow:'Низкая', swMed:'Средняя', swHigh:'Высокая',
+    rewards:'🎁 Награды', rewardsTitle:'🎁 Награды',
+    dailyBonus2:'Ежедневный бонус', dailyBonusDesc:'Бесплатный подарок монет, раз в день', open2:'Открыть 🎁',
+    freeCoins:'Бесплатные монеты', freeCoinsDesc:'Посмотри короткую рекламу — получи монеты', watchGet:'🎬 Смотреть',
+    readyIn:'Готово через', comeBackTomorrow:'Заходи завтра', claimed:'Забрано ✓',
+    weeklyMission:'Задание недели', weeklyDoneMsg:'Задание недели выполнено!',
+    ratePrompt:'Нравится Snake? Оцени нас в сторе ⭐',
   },
 };
 let L = STRINGS.en;
@@ -622,6 +655,12 @@ const CHALLENGES = [
   {type:'combo', target:3,   name:'Reach 3x combo',   reward:150},
   {type:'level', target:3,   name:'Reach level 3',    reward:150},
   {type:'survival', target:60, name:'Survive 60 seconds', reward:100},
+];
+const WEEKLY_CHALLENGES = [
+  {type:'score',    target:300, reward:500},
+  {type:'level',    target:8,   reward:500},
+  {type:'combo',    target:8,   reward:600},
+  {type:'survival', target:150, reward:500},
 ];
 
 const POWERUPS = {
@@ -684,7 +723,7 @@ const G = {
   stepMs:BASE_STEP, stepAcc:0, lastTs:0, playMs:0,
   slowUntil:0,
   currency:0, currentSkin:'classic', skinsUnlocked:{classic:true},
-  settings:{sound:true, music:false, haptics:true, motion:false},
+  settings:{sound:true, music:false, haptics:true, motion:false, trail:false, swipe:'med'},
   achievements:{}, daily:null, dailyDone:false,
   stats:{games:0, total:0, combo:0, coins:0, time:0},
   bestComboRun:0,
@@ -841,6 +880,28 @@ function checkDaily(){
   }
 }
 
+// ---------- Weekly mission ----------
+function weekKey(){ return Math.floor(Date.now()/(7*86400000)); }
+function loadWeekly(){
+  G.weekly = WEEKLY_CHALLENGES[weekKey() % WEEKLY_CHALLENGES.length];
+  const saved = store.get('weekly', null);
+  G.weeklyDone = !!(saved && saved.week===weekKey() && saved.done);
+}
+function checkWeekly(){
+  if(G.weeklyDone || !G.weekly) return;
+  const c=G.weekly; let ok=false;
+  if(c.type==='score') ok=G.score>=c.target;
+  else if(c.type==='combo') ok=G.combo>=c.target;
+  else if(c.type==='level') ok=G.level>=c.target;
+  else if(c.type==='survival') ok=G.playMs>=c.target*1000;
+  if(ok){
+    G.weeklyDone=true; store.set('weekly',{week:weekKey(),done:true});
+    G.currency+=c.reward; store.set('currency',G.currency);
+    notify('🏅 '+t('weeklyDoneMsg')+' +'+c.reward+' 🪙', COL.green); Sound.ach();
+    updateHUD();
+  }
+}
+
 // ---------- Particles ----------
 function burst(px,py,color,count){
   for(let i=0;i<count;i++){
@@ -882,6 +943,7 @@ function gameOver(){
   st.games++; st.total+=G.score; st.coins+=earned; st.time+=G.playMs;
   if(G.bestComboRun>st.combo) st.combo=G.bestComboRun;
   store.set('stats', st);
+  maybeRatePrompt();
   // Local leaderboard (top 10)
   if(G.score>0){ let lb=store.get('scores',[]); lb.push(G.score); lb.sort((a,b)=>b-a); store.set('scores', lb.slice(0,10)); }
   document.getElementById('goScore').textContent=G.score;
@@ -924,6 +986,9 @@ function step(){
   G.prevSnake=G.snake.map(s=>({...s}));
   G.snake.unshift({x:nx,y:ny});
   if(G.grow>0){ G.grow--; } else { G.snake.pop(); }
+  // Cosmetic trail: leave a fading glow at the tail's old cell
+  if(G.settings.trail){ const tp=G.prevSnake[G.prevSnake.length-1];
+    if(tp) G.particles.push({x:(tp.x+0.5)*G.cell,y:(tp.y+0.5)*G.cell,vx:0,vy:0,life:0.7,size:G.cell*0.26,color:trailColor()}); }
 
   // Power-up pickup
   if(G.powerup && nx===G.powerup.x && ny===G.powerup.y){ applyPowerup(G.powerup.kind); G.powerup=null; }
@@ -952,7 +1017,7 @@ function eatFood(){
   if(G.level>=5) unlock('level_5');
   spawnFood();
   if(!G.powerup && Math.random()<0.16) spawnPowerup();
-  checkDaily(); updateHUD();
+  checkDaily(); checkWeekly(); updateHUD();
 }
 
 function update(dt){
@@ -1054,6 +1119,7 @@ function hexShade(hex,f){
   r=Math.min(255,Math.max(0,r*f))|0; g=Math.min(255,Math.max(0,g*f))|0; b=Math.min(255,Math.max(0,b*f))|0;
   return 'rgb('+r+','+g+','+b+')';
 }
+function trailColor(){ const s=SKINS[G.currentSkin]||{}; return s.rainbow ? 'hsl('+(performance.now()/6%360)+',75%,60%)' : (s.color||'#2ecc71'); }
 function drawSnake(t){
   const skin=SKINS[G.currentSkin];
   const n=G.snake.length;
@@ -1167,7 +1233,7 @@ function applyLang(lang){
   set('btnShopClose',t('close'));
   // Settings
   document.querySelectorAll('#ovSet h1').forEach(e=>e.textContent=t('settings'));
-  const sl=document.querySelectorAll('#ovSet .set-item span'); const skeys=['setSound','setMusic','setVibration','setMotion','setTheme','language','setRemoveAds','setRestore','setRate','setReset','setAbout'];
+  const sl=document.querySelectorAll('#ovSet .set-item span'); const skeys=['setSound','setMusic','setVibration','setMotion','setTrail','setSwipe','setTheme','language','setRemoveAds','setRestore','setRate','setReset','setAbout'];
   sl.forEach((e,i)=>{ if(skeys[i]) e.textContent=t(skeys[i]); });
   set('setRestore',t('restore')); set('setRate',t('rate')); set('setReset',t('reset')); set('setAbout',t('open'));
   set('btnSetClose',t('close'));
@@ -1191,8 +1257,10 @@ function applyLang(lang){
   const hint=document.getElementById('hint'); if(hint && hint.textContent) hint.textContent=t('hintInGame');
   // refresh dynamic
   updateHUD(); refreshMenu(); refreshSettings();
+  set('rewardsTitle',t('rewardsTitle')); set('btnRewardsClose',t('close')); set('menuRewards',t('rewards'));
   if(document.getElementById('ovShop').classList.contains('show')) renderShop();
   if(document.getElementById('ovStats').classList.contains('show')) renderStats();
+  if(document.getElementById('ovRewards').classList.contains('show')) renderRewards();
   store.set('lang', G.lang);
 }
 function refreshMenu(){
@@ -1325,6 +1393,55 @@ function revive(){
   hide('ovOver'); showGameUI(true); Music.start(); G.lastTs=performance.now();
 }
 
+// ---------- Rewards hub ----------
+function fmtDur(ms){ const m=Math.max(0,Math.ceil(ms/60000)); if(m<60) return m+'m'; return Math.floor(m/60)+'h '+(m%60)+'m'; }
+function openRewards(){ renderRewards(); if(G.running&&!G.over)G.paused=true; show('ovRewards'); }
+function rewardBanner(el,title,desc,btnLabel,btnFn,owned){
+  const b=document.createElement('div'); b.className='store-banner'+(owned?' owned':'');
+  b.innerHTML='<div class="sb-title">'+title+'</div><div class="sb-desc">'+desc+'</div>';
+  if(btnLabel){ const btn=document.createElement('button'); btn.className='primary'; btn.textContent=btnLabel;
+    if(btnFn) btn.onclick=btnFn; else btn.disabled=true; b.appendChild(btn); }
+  el.appendChild(b);
+}
+function renderRewards(){
+  const el=document.getElementById('rewardsBody'); el.innerHTML='';
+  // Daily bonus (one free per day, optional ×2 via rewarded ad)
+  const db=store.get('dailyBonus',null), dbDone=db&&db.date===todayKey();
+  if(!dbDone) rewardBanner(el,'🎁 '+t('dailyBonus2'),t('dailyBonusDesc'),t('open2'),claimDailyBonus,false);
+  else if(!db.adUsed) rewardBanner(el,'🎁 '+t('dailyBonus2'),t('dailyBonusDesc'),t('doubleAd'),()=>{
+    playAd(t('dailyBonus2'),'',()=>{ const amt=db.amount||50; G.currency+=amt; store.set('currency',G.currency);
+      store.set('dailyBonus',{date:todayKey(),amount:amt,adUsed:true}); Sound.buy(); notify('🪙 +'+amt,COL.green);
+      updateHUD(); refreshMenu(); renderRewards(); }); },false);
+  else rewardBanner(el,'🎁 '+t('dailyBonus2'),t('comeBackTomorrow'),null,null,true);
+  // Free coins via rewarded ad (every 30 min)
+  const last=store.get('freeCoins',0), left=FREE_COINS_COOLDOWN-(Date.now()-last);
+  if(left<=0) rewardBanner(el,'🪙 '+t('freeCoins'),t('freeCoinsDesc'),t('watchGet')+' +'+FREE_COINS_AMOUNT,claimFreeCoins,false);
+  else rewardBanner(el,'🪙 '+t('freeCoins'),t('readyIn')+' '+fmtDur(left),null,null,false);
+  // Weekly mission (auto-granted when its target is met in-game)
+  if(G.weekly){
+    const wname=t('chall'+G.weekly.type.charAt(0).toUpperCase()+G.weekly.type.slice(1)).replace('{n}',G.weekly.target);
+    rewardBanner(el,'📅 '+t('weeklyMission'), wname+' · +'+G.weekly.reward+' 🪙',
+      G.weeklyDone?t('claimed'):null, null, G.weeklyDone);
+  }
+}
+function claimDailyBonus(){
+  const amt=25+rnd(6)*25;  // 25..150
+  G.currency+=amt; store.set('currency',G.currency);
+  store.set('dailyBonus',{date:todayKey(),amount:amt,adUsed:false});
+  Sound.buy(); vibe(20); notify('🎁 +'+amt+' 🪙',COL.green); updateHUD(); refreshMenu(); renderRewards();
+}
+function claimFreeCoins(){
+  playAd(t('freeCoins'),'',()=>{ G.currency+=FREE_COINS_AMOUNT; store.set('currency',G.currency);
+    store.set('freeCoins',Date.now()); Sound.buy(); notify('🪙 +'+FREE_COINS_AMOUNT,COL.green);
+    updateHUD(); refreshMenu(); renderRewards(); });
+}
+// Gentle rating nudge on the 5th finished game (native uses the store; web opens the listing).
+function maybeRatePrompt(){
+  if(store.get('rated',false) || G.stats.games!==5) return;
+  store.set('rated',true);
+  setTimeout(()=>{ try{ if(confirm(t('ratePrompt')) && window.SnakeNative) window.SnakeNative.rate(); }catch(e){} }, 700);
+}
+
 // ---------- Shop ----------
 function renderShop(){
   document.getElementById('shopCoins').textContent='🪙 '+G.currency+' coins';
@@ -1396,12 +1513,13 @@ window.addEventListener('keydown',e=>{
   else if(e.code==='KeyP'){ togglePause(); }
   else if(e.code==='Space'){ if(G.over) maybeInterstitial(()=>startGame(G.mode)); e.preventDefault(); }
 });
+function swipeMin(){ return {low:12,med:20,high:32}[G.settings.swipe]||20; }
 let touchStart=null;
 canvas.addEventListener('touchstart',e=>{ Sound.init(); touchStart=e.changedTouches[0]; },{passive:true});
 canvas.addEventListener('touchend',e=>{
   if(!touchStart) return;
   const t=e.changedTouches[0], dx=t.clientX-touchStart.clientX, dy=t.clientY-touchStart.clientY;
-  if(Math.abs(dx)<20&&Math.abs(dy)<20){ touchStart=null; return; }
+  const sm=swipeMin(); if(Math.abs(dx)<sm&&Math.abs(dy)<sm){ touchStart=null; return; }
   if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?1:-1,0); else setDir(0,dy>0?1:-1);
   touchStart=null;
 },{passive:true});
@@ -1437,6 +1555,8 @@ document.getElementById('btnShop').onclick=openShop;
 document.getElementById('menuShop').onclick=openShop;
 document.getElementById('btnStats').onclick=openStats;
 document.getElementById('menuStats').onclick=openStats;
+document.getElementById('menuRewards').onclick=openRewards;
+document.getElementById('btnRewardsClose').onclick=()=>{ hide('ovRewards'); if(G.running&&!G.over){G.paused=false;} };
 document.getElementById('btnSettings').onclick=openSettings;
 document.getElementById('menuSettings').onclick=openSettings;
 document.getElementById('btnShopClose').onclick=()=>{ hide('ovShop'); if(G.running&&!G.over){G.paused=false;} };
@@ -1468,11 +1588,13 @@ document.getElementById('setSound').onclick=()=>{ G.settings.sound=!G.settings.s
 document.getElementById('setMusic').onclick=()=>{ G.settings.music=!G.settings.music; store.set('settings',G.settings); refreshSettings(); if(G.settings.music) Music.start(); else Music.stop(); };
 document.getElementById('setHaptics').onclick=()=>{ G.settings.haptics=!G.settings.haptics; store.set('settings',G.settings); refreshSettings(); vibe(25); };
 document.getElementById('setMotion').onclick=()=>{ G.settings.motion=!G.settings.motion; store.set('settings',G.settings); refreshSettings(); };
+document.getElementById('setTrail').onclick=()=>{ G.settings.trail=!G.settings.trail; store.set('settings',G.settings); refreshSettings(); Sound.eat(); };
+document.getElementById('setSwipe').onclick=()=>{ const o=['low','med','high']; G.settings.swipe=o[(o.indexOf(G.settings.swipe)+1)%3]; store.set('settings',G.settings); refreshSettings(); Sound.eat(); };
 document.getElementById('setTheme').onclick=()=>{ const i=(THEME_KEYS.indexOf(G.theme)+1)%THEME_KEYS.length; applyTheme(THEME_KEYS[i]); store.set('theme',G.theme); refreshSettings(); Sound.eat(); };
 document.getElementById('setLang').onclick=()=>{ applyLang(G.lang==='ru'?'en':'ru'); Sound.eat(); };
 document.getElementById('setReset').onclick=()=>{
   if(confirm('Reset all progress (high score, coins, skins, stats)?')){
-    ['high','currency','unlocked','skin','ach','daily','settings','stats','reward','scores','noads','theme','premium','seenIntro','lang'].forEach(k=>{try{localStorage.removeItem('snake_'+k);}catch(e){}});
+    ['high','currency','unlocked','skin','ach','daily','settings','stats','reward','scores','noads','theme','premium','seenIntro','lang','freeCoins','weekly','dailyBonus','rated'].forEach(k=>{try{localStorage.removeItem('snake_'+k);}catch(e){}});
     location.reload();
   }
 };
@@ -1481,6 +1603,8 @@ function refreshSettings(){
   document.getElementById('setMusic').textContent=G.settings.music?t('on'):t('off');
   document.getElementById('setHaptics').textContent=G.settings.haptics?t('on'):t('off');
   document.getElementById('setMotion').textContent=G.settings.motion?t('on'):t('off');
+  document.getElementById('setTrail').textContent=G.settings.trail?t('on'):t('off');
+  document.getElementById('setSwipe').textContent=t('sw'+G.settings.swipe.charAt(0).toUpperCase()+G.settings.swipe.slice(1));
   const na=document.getElementById('setNoAds'); na.textContent=Ads.removed?t('owned'):t('buy'); na.disabled=Ads.removed;
   document.getElementById('setTheme').textContent=THEMES[G.theme].name;
   const lg=document.getElementById('setLang'); if(lg) lg.textContent=(G.lang==='ru'?'Русский':'English');
@@ -1574,14 +1698,14 @@ function load(){
   G.skinsUnlocked=Object.assign({classic:true}, store.get('unlocked',{}));
   if(!G.skinsUnlocked[G.currentSkin]) G.currentSkin='classic';
   G.achievements=store.get('ach',{});
-  G.settings=Object.assign({sound:true,music:false,haptics:true,motion:false}, store.get('settings',{}));
+  G.settings=Object.assign({sound:true,music:false,haptics:true,motion:false,trail:false,swipe:'med'}, store.get('settings',{}));
   G.stats=Object.assign({games:0,total:0,combo:0,coins:0,time:0}, store.get('stats',{}));
   G.premium=store.get('premium', false);
   Ads.removed=store.get('noads', false) || G.premium;
   G.lang=store.get('lang', null) || ((navigator.language||'en').toLowerCase().indexOf('ru')===0?'ru':'en');
   applyTheme(store.get('theme','default'));
   Sound.enabled=G.settings.sound;
-  loadDaily();
+  loadDaily(); loadWeekly();
 }
 load(); resize(); updateHUD(); refreshMenu(); showGameUI(false); applyLang(G.lang);
 if(!store.get('seenIntro', false)){ show('ovIntro'); } else { checkDailyReward(); }
