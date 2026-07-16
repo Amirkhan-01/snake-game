@@ -200,6 +200,13 @@
     width:130px;height:6px;border-radius:99px;background:rgba(255,255,255,.14);z-index:4;overflow:hidden;
     display:none;box-shadow:0 2px 8px rgba(0,0,0,.35)}
   #comboFill{height:100%;width:100%;border-radius:99px;background:var(--orange)}
+  .rw-cal{display:flex;gap:4px;justify-content:center;margin:10px 0}
+  .rw-day{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--panel-border);border-radius:8px;
+    padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted)}
+  .rw-day b{font-size:12px;color:var(--text)}
+  .rw-day span{font-size:9px}
+  .rw-today{border-color:var(--yellow);background:rgba(241,196,15,.16);color:var(--text)}
+  .rw-done{opacity:.45}
 </style>
 </head>
 <body>
@@ -327,8 +334,12 @@
       <h1>🛍 Store</h1>
       <h2 id="shopCoins">🪙 0 coins</h2>
       <div id="storeExtras"></div>
-      <div class="store-section">Skins</div>
+      <div class="store-section" id="secSkins">Skins</div>
       <div id="shopList"></div>
+      <div class="store-section" id="secFood">Food</div>
+      <div id="shopFood"></div>
+      <div class="store-section" id="secFrames">Frames</div>
+      <div id="shopFrames"></div>
       <div class="row"><button class="primary" id="btnShopClose">Close</button></div>
     </div>
   </div>
@@ -392,6 +403,7 @@
     <div class="card center">
       <h1>🎁 Daily Reward</h1>
       <h2 id="rwStreak">Day 1 streak</h2>
+      <div id="rwCal" class="rw-cal"></div>
       <p style="font-size:40px;font-weight:900;color:var(--yellow);margin:10px 0" id="rwAmount">🪙 +50</p>
       <div class="row"><button class="primary" id="btnClaim">Claim</button></div>
     </div>
@@ -541,6 +553,8 @@ const SKINS = {
   venom:  {name:'Venom',   color:'#7CFF3B', price:450, rarity:'epic'},
   phantom:{name:'Phantom', color:'#8899ff', price:550, rarity:'epic'},
   rainbow:{name:'Rainbow', color:null, price:500, rainbow:true, rarity:'epic'},
+  spectrum:{name:'Spectrum', color:'#8affff', price:600, rarity:'epic', anim:'spectrum'},
+  inferno: {name:'Inferno',  color:'#ff3b3b', price:600, rarity:'epic', anim:'inferno'},
   // Premium skins (real-money): galaxy comes with Full Version, aurora is a direct purchase.
   galaxy: {name:'Galaxy',  color:'#8a7dff', premium:true, rarity:'premium'},
   aurora: {name:'Aurora',  color:'#3affc8', iap:'skin_aurora', iapPrice:'$1.49', rarity:'premium'},
@@ -548,6 +562,20 @@ const SKINS = {
 const RARITY_COL = {common:'#9aa3c7', rare:'#3498db', epic:'#9b59b6', premium:'#f1c40f'};
 function rarityColor(r){ return RARITY_COL[r]||RARITY_COL.common; }
 function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+const FOODSKINS = {
+  classic:{name:'Apple',  price:0},
+  cherry: {name:'Cherry', emoji:'🍒', price:150},
+  donut:  {name:'Donut',  emoji:'🍩', price:200},
+  gem:    {name:'Gem',    emoji:'💎', price:250},
+  heart:  {name:'Heart',  emoji:'❤️', price:200},
+};
+const FRAMES = {
+  none: {name:'None',  price:0,   color:null},
+  gold: {name:'Gold',  price:200, color:'#ffd700'},
+  neon: {name:'Neon',  price:250, color:'#ff00ff'},
+  ice:  {name:'Ice',   price:200, color:'#64c8ff'},
+  ember:{name:'Ember', price:250, color:'#ff6432'},
+};
 
 // In-app purchases. Ids must match the products you create in Google Play / App Store.
 const IAP_PRODUCTS = {
@@ -614,6 +642,7 @@ const STRINGS = {
     rarCommon:'Common', rarRare:'Rare', rarEpic:'Epic', rarPremium:'Premium',
     newRecord:'🎉 New record!',
     accLevel:'Account level', weekBest:'This week best', beatWeek:'Beat last week!',
+    foodSection:'Food', framesSection:'Frames', notEnough:'Not enough coins',
   },
   ru: {
     premiumEdition:'Премиум-издание', best:'Рекорд', coins:'Монеты', streak:'Серия',
@@ -668,6 +697,7 @@ const STRINGS = {
     rarCommon:'Обычный', rarRare:'Редкий', rarEpic:'Эпический', rarPremium:'Премиум',
     newRecord:'🎉 Новый рекорд!',
     accLevel:'Уровень аккаунта', weekBest:'Лучшее за неделю', beatWeek:'Побит рекорд недели!',
+    foodSection:'Еда', framesSection:'Рамки', notEnough:'Недостаточно монет',
   },
 };
 let L = STRINGS.en;
@@ -705,6 +735,8 @@ const POWERUPS = {
   x2:     {icon:'2×', color:'#ffd54a', label:'Double score', dur:8000},
   shield: {icon:'🛡', color:'#5bd0ff', label:'Shield',       dur:6000},
   magnet: {icon:'🧲', color:'#ff6bd6', label:'Magnet',       dur:8000},
+  coins:  {icon:'🪙', color:'#f1c40f', label:'Coin bonus',   dur:0},
+  shrink: {icon:'✂️', color:'#2ecc71', label:'Shrink',       dur:0},
 };
 const POWERUP_KEYS = Object.keys(POWERUPS);
 
@@ -768,6 +800,7 @@ const G = {
   powerup:null, x2Until:0, shieldUntil:0, magnetUntil:0,
   timeLeft:0, theme:'default', premium:false, lang:'en',
   floats:[], shakeUntil:0, shakeMag:0, beatHigh:false, starterStart:0,
+  foodSel:'classic', foodUnlocked:{classic:true}, frameSel:'none', frameUnlocked:{none:true},
 };
 function hasObstacles(){ return G.mode==='obstacles' || G.mode==='hardcore'; }
 function wrapWalls(){ return G.mode==='classic' || G.mode==='timeattack' || G.mode==='zen'; }
@@ -791,6 +824,8 @@ function applyPowerup(kind){
   if(kind==='x2') G.x2Until=now+dur;
   else if(kind==='shield') G.shieldUntil=now+dur;
   else if(kind==='magnet') G.magnetUntil=now+dur;
+  else if(kind==='coins'){ G.currency+=25; store.set('currency',G.currency); updateHUD(); }
+  else if(kind==='shrink'){ for(let k=0;k<4 && G.snake.length>3;k++) G.snake.pop(); G.prevSnake=G.snake.map(x=>({...x})); }
   const cx=(G.powerup.x+0.5)*G.cell, cy=(G.powerup.y+0.5)*G.cell;
   burst(cx,cy,POWERUPS[kind].color,18);
   notify(POWERUPS[kind].icon+' '+POWERUPS[kind].label+'!', POWERUPS[kind].color);
@@ -854,6 +889,7 @@ function spawnFood(){
   let type='normal', timer=0;
   if(r<0.1){ type='bonus'; timer=6000; }
   else if(r<0.2){ type='slow'; timer=5000; }
+  else if(r<0.25){ type='cursed'; timer=7000; }
   G.food={x,y,fx:x,fy:y,type,timer};   // fx/fy = smooth display position (used for magnet fly-in)
 }
 function genObstacles(){
@@ -1069,6 +1105,7 @@ function eatFood(){
   let pts=10, col=COL.red, cnt=8;
   if(G.food.type==='bonus'){ pts=30; col=COL.purple; cnt=16; Sound.bonus(); vibe([10,20,10]); }
   else if(G.food.type==='slow'){ pts=15; col=COL.cyan; cnt=12; G.slowUntil=performance.now()+3500; Sound.slow(); vibe(20); }
+  else if(G.food.type==='cursed'){ pts=60; col='#b46bff'; cnt=20; G.grow+=2; if(!G.settings.motion) shake(5,220); Sound.bonus(); vibe([10,30,10]); }
   else { Sound.eat(); vibe(12); }
   if(G.food.type==='bonus'){ G.stats.bonus=(G.stats.bonus||0)+1; store.set('stats',G.stats); if(G.stats.bonus>=25) unlock('bonus_25'); }
   const addPts=Math.floor(pts*mult);
@@ -1167,18 +1204,24 @@ function drawFood(){
   const cx=(fx+0.5)*G.cell, cy=(fy+0.5)*G.cell, r=G.cell*0.36;
   const t=performance.now();
   if(f.type==='normal'){
-    ctx.shadowColor=COL.red; ctx.shadowBlur=12;
-    ctx.fillStyle=COL.red; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill();
-    ctx.shadowBlur=0;
-    ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(cx-r*0.3,cy-r*0.3,r*0.28,0,7); ctx.fill();
-    ctx.strokeStyle='#228B22'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx,cy-r); ctx.lineTo(cx,cy-r-4); ctx.stroke();
+    const fsk=FOODSKINS[G.foodSel];
+    if(fsk && fsk.emoji){
+      ctx.font=Math.floor(G.cell*0.8)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(fsk.emoji, cx, cy+1); ctx.textAlign='start'; ctx.textBaseline='alphabetic';
+    } else {
+      ctx.shadowColor=COL.red; ctx.shadowBlur=12;
+      ctx.fillStyle=COL.red; ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(cx-r*0.3,cy-r*0.3,r*0.28,0,7); ctx.fill();
+      ctx.strokeStyle='#228B22'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx,cy-r); ctx.lineTo(cx,cy-r-4); ctx.stroke();
+    }
   } else if(f.type==='bonus'){
     const pulse=1+Math.sin(t/120)*0.12;
     ctx.shadowColor=COL.purple; ctx.shadowBlur=18;
     drawStar(cx,cy,5,r*pulse,r*0.5*pulse,COL.purple);
     ctx.shadowBlur=0;
     ctx.fillStyle=COL.yellow; ctx.beginPath(); ctx.arc(cx,cy,r*0.35,0,7); ctx.fill();
-  } else {
+  } else if(f.type==='slow'){
     ctx.shadowColor=COL.cyan; ctx.shadowBlur=16;
     ctx.fillStyle=COL.cyan;
     ctx.beginPath();
@@ -1186,6 +1229,13 @@ function drawFood(){
       const px=cx+Math.cos(a)*rr, py=cy+Math.sin(a)*rr; i?ctx.lineTo(px,py):ctx.moveTo(px,py);}
     ctx.closePath(); ctx.fill(); ctx.shadowBlur=0;
     ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx-2,cy-2,2,0,7); ctx.fill();
+  } else {
+    const pulse=1+Math.sin(performance.now()/100)*0.14;
+    ctx.shadowColor='#b46bff'; ctx.shadowBlur=20;
+    ctx.fillStyle='#6a2bd6'; ctx.beginPath(); ctx.arc(cx,cy,r*pulse,0,7); ctx.fill();
+    ctx.shadowBlur=0; ctx.fillStyle='#e6ccff';
+    ctx.font='bold '+Math.floor(G.cell*0.5)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('☠', cx, cy+1); ctx.textAlign='start'; ctx.textBaseline='alphabetic';
   }
 }
 function drawStar(cx,cy,spikes,outer,inner,color){
@@ -1219,6 +1269,10 @@ function drawSnake(t){
     if(skin.rainbow){
       const hue=(i*14 + t*10 + performance.now()/18)%360;
       color='hsl('+hue+',75%,60%)';
+    } else if(skin.anim==='spectrum'){
+      color='hsl('+((performance.now()/6 + i*20)%360)+',85%,60%)';
+    } else if(skin.anim==='inferno'){
+      const pp=(Math.sin(performance.now()/200 - i*0.3)+1)/2; color='hsl('+(10+pp*35)+',90%,'+(45+pp*15)+'%)';
     } else {
       const base=skin.color;
       const ratio=0.5+0.5*(1-i/Math.max(1,n));
@@ -1327,7 +1381,9 @@ function applyLang(lang){
   set('btnRevive',t('continueAd')); set('btnX2',t('doubleAd'));
   // Store static
   document.querySelectorAll('#ovShop h1').forEach(e=>e.textContent=t('storeTitle'));
-  document.querySelectorAll('#ovShop .store-section').forEach(e=>e.textContent=t('skinsSection'));
+  { const _ss=document.getElementById('secSkins'); if(_ss)_ss.textContent=t('skinsSection');
+    const _sf=document.getElementById('secFood'); if(_sf)_sf.textContent=t('foodSection');
+    const _sr=document.getElementById('secFrames'); if(_sr)_sr.textContent=t('framesSection'); }
   set('btnShopClose',t('close'));
   // Settings
   document.querySelectorAll('#ovSet h1').forEach(e=>e.textContent=t('settings'));
@@ -1555,6 +1611,30 @@ function maybeRatePrompt(){
   setTimeout(()=>{ try{ if(confirm(t('ratePrompt')) && window.SnakeNative) window.SnakeNative.rate(); }catch(e){} }, 700);
 }
 
+function applyFrame(id){
+  if(!FRAMES[id]) id='none'; G.frameSel=id;
+  const c=FRAMES[id].color;
+  canvas.style.boxShadow = c ? ('0 0 0 3px '+c+', 0 0 26px '+c+'aa, 0 14px 50px rgba(0,0,0,.5)')
+    : '0 14px 50px rgba(0,0,0,.5), 0 0 0 1px rgba(91,140,255,.18), inset 0 0 70px rgba(91,140,255,.06)';
+}
+function renderCosmeticList(cid, DATA, un, getSel, setSel, unStoreKey){
+  const list=document.getElementById(cid); if(!list) return; list.innerHTML='';
+  for(const id in DATA){
+    const it=DATA[id], owned=(it.price===0)||!!un[id], eq=getSel()===id;
+    const row=document.createElement('div'); row.className='shop-item';
+    const sw=document.createElement('div'); sw.className='swatch';
+    if(it.emoji){ sw.style.background='transparent'; sw.style.boxShadow='none'; sw.textContent=it.emoji; sw.style.fontSize='18px'; sw.style.textAlign='center'; sw.style.lineHeight='26px'; }
+    else sw.style.background=it.color||'rgba(255,255,255,.15)';
+    const name=document.createElement('div'); name.className='name'; name.textContent=it.name;
+    const btn=document.createElement('button');
+    if(eq){ btn.textContent=t('equipped'); btn.disabled=true; btn.classList.add('tag'); }
+    else if(owned){ btn.textContent=t('equip'); btn.onclick=()=>{ setSel(id); Sound.eat(); renderShop(); }; }
+    else { btn.textContent='🪙 '+it.price; btn.onclick=()=>{
+      if(G.currency>=it.price){ G.currency-=it.price; un[id]=true; store.set('currency',G.currency); store.set(unStoreKey,un); setSel(id); Sound.buy(); notify(t('unlocked')+' '+it.name, COL.green); updateHUD(); renderShop(); }
+      else { Sound.denied(); notify(t('notEnough'), COL.red); } }; }
+    row.append(sw,name,btn); list.appendChild(row);
+  }
+}
 // ---------- Shop ----------
 function starterActive(){ return !G.premium && !store.get('starterBought',false) && (Date.now()-G.starterStart < STARTER_DURATION); }
 function renderShop(){
@@ -1606,6 +1686,8 @@ function renderShop(){
     row.append(sw,name,btn); list.appendChild(row);
   }
   checkCollector();
+  renderCosmeticList('shopFood', FOODSKINS, G.foodUnlocked, ()=>G.foodSel, id=>{ G.foodSel=id; store.set('foodSel',id); }, 'foodUnlocked');
+  renderCosmeticList('shopFrames', FRAMES, G.frameUnlocked, ()=>G.frameSel, id=>{ G.frameSel=id; store.set('frameSel',id); applyFrame(id); }, 'frameUnlocked');
 }
 function iapRow(id){
   const p=IAP_PRODUCTS[id];
@@ -1720,7 +1802,7 @@ document.getElementById('setTheme').onclick=()=>{ const i=(THEME_KEYS.indexOf(G.
 document.getElementById('setLang').onclick=()=>{ applyLang(G.lang==='ru'?'en':'ru'); Sound.eat(); };
 document.getElementById('setReset').onclick=()=>{
   if(confirm('Reset all progress (high score, coins, skins, stats)?')){
-    ['high','currency','unlocked','skin','ach','daily','settings','stats','reward','scores','noads','theme','premium','seenIntro','lang','freeCoins','weekly','dailyBonus','rated','starterStart','starterBought','weekScores'].forEach(k=>{try{localStorage.removeItem('snake_'+k);}catch(e){}});
+    ['high','currency','unlocked','skin','ach','daily','settings','stats','reward','scores','noads','theme','premium','seenIntro','lang','freeCoins','weekly','dailyBonus','rated','starterStart','starterBought','weekScores','foodSel','foodUnlocked','frameSel','frameUnlocked'].forEach(k=>{try{localStorage.removeItem('snake_'+k);}catch(e){}});
     location.reload();
   }
 };
@@ -1783,6 +1865,12 @@ function checkDailyReward(){
   G._pendingReward={amount, streak, today};
   document.getElementById('rwStreak').textContent=t('dayStreak').replace('{n}',streak);
   document.getElementById('rwAmount').textContent='🪙 +'+amount;
+  const cal=document.getElementById('rwCal');
+  if(cal){ cal.innerHTML=''; const curDay=((streak-1)%7)+1;
+    for(let d=1; d<=7; d++){ const amt=Math.min(50+(d-1)*25,250);
+      const cell=document.createElement('div');
+      cell.className='rw-day'+(d===curDay?' rw-today':'')+(d<curDay?' rw-done':'');
+      cell.innerHTML='<b>'+d+'</b><span>'+amt+'</span>'; cal.appendChild(cell); } }
   show('ovReward');
 }
 document.getElementById('btnClaim').onclick=()=>{
@@ -1836,6 +1924,9 @@ function load(){
   Sound.enabled=G.settings.sound;
   G.starterStart = store.get('starterStart', 0);
   if(!G.starterStart){ G.starterStart=Date.now(); store.set('starterStart', G.starterStart); }
+  G.foodSel=store.get('foodSel','classic'); G.foodUnlocked=Object.assign({classic:true}, store.get('foodUnlocked',{}));
+  G.frameSel=store.get('frameSel','none'); G.frameUnlocked=Object.assign({none:true}, store.get('frameUnlocked',{}));
+  applyFrame(G.frameSel);
   loadDaily(); loadWeekly();
 }
 load(); resize(); updateHUD(); refreshMenu(); showGameUI(false); applyLang(G.lang);
