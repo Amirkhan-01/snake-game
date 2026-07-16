@@ -272,6 +272,11 @@
         <span class="mtext"><b>Time Attack</b><small>60 seconds · walls wrap · score rush</small></span>
         <span class="marrow">›</span>
       </button>
+      <button class="modebtn" data-mode="zen">
+        <span class="mbadge" style="background:rgba(46,204,113,.22)">🧘</span>
+        <span class="mtext"><b>Zen</b><small>Relax · no walls, no game over</small></span>
+        <span class="marrow">›</span>
+      </button>
       <div class="menu-actions">
         <button id="menuShop">🛍 Shop</button>
         <button id="menuStats">📊 Stats</button>
@@ -507,6 +512,8 @@ const SURVIVOR_MS = 120000;
 const MAGNET_SPEED = 9;          // magnet fly-in speed, cells per second (higher = faster)
 const FREE_COINS_COOLDOWN = 30*60*1000;  // rewarded "free coins" available every 30 min
 const FREE_COINS_AMOUNT = 40;
+const STARTER_DURATION = 48*60*60*1000;  // limited-time starter offer window (48h from first launch)
+const ZEN_STEP = 145;                    // constant relaxed speed for Zen mode (ms per move)
 
 const COL = {
   green:'#2ecc71', red:'#e74c3c', blue:'#3498db', yellow:'#f1c40f',
@@ -514,19 +521,24 @@ const COL = {
 };
 
 const SKINS = {
-  classic:{name:'Classic', color:'#2ecc71', price:0},
-  fire:   {name:'Fire',    color:'#ff6432', price:100},
-  ice:    {name:'Ice',     color:'#64c8ff', price:150},
-  gold:   {name:'Gold',    color:'#ffd700', price:200},
-  neon:   {name:'Neon',    color:'#ff00ff', price:300},
-  rainbow:{name:'Rainbow', color:null, price:500, rainbow:true},
-  emerald:{name:'Emerald', color:'#2ee6a0', price:250},
-  sunset: {name:'Sunset',  color:'#ff5e62', price:350},
-  cobalt: {name:'Cobalt',  color:'#3a6bff', price:400},
+  classic:{name:'Classic', color:'#2ecc71', price:0,   rarity:'common'},
+  fire:   {name:'Fire',    color:'#ff6432', price:100, rarity:'rare'},
+  ice:    {name:'Ice',     color:'#64c8ff', price:150, rarity:'rare'},
+  gold:   {name:'Gold',    color:'#ffd700', price:200, rarity:'rare'},
+  emerald:{name:'Emerald', color:'#2ee6a0', price:250, rarity:'rare'},
+  sunset: {name:'Sunset',  color:'#ff5e62', price:350, rarity:'rare'},
+  neon:   {name:'Neon',    color:'#ff00ff', price:300, rarity:'epic'},
+  cobalt: {name:'Cobalt',  color:'#3a6bff', price:400, rarity:'epic'},
+  venom:  {name:'Venom',   color:'#7CFF3B', price:450, rarity:'epic'},
+  phantom:{name:'Phantom', color:'#8899ff', price:550, rarity:'epic'},
+  rainbow:{name:'Rainbow', color:null, price:500, rainbow:true, rarity:'epic'},
   // Premium skins (real-money): galaxy comes with Full Version, aurora is a direct purchase.
-  galaxy: {name:'Galaxy',  color:'#8a7dff', premium:true},
-  aurora: {name:'Aurora',  color:'#3affc8', iap:'skin_aurora', iapPrice:'$1.49'},
+  galaxy: {name:'Galaxy',  color:'#8a7dff', premium:true, rarity:'premium'},
+  aurora: {name:'Aurora',  color:'#3affc8', iap:'skin_aurora', iapPrice:'$1.49', rarity:'premium'},
 };
+const RARITY_COL = {common:'#9aa3c7', rare:'#3498db', epic:'#9b59b6', premium:'#f1c40f'};
+function rarityColor(r){ return RARITY_COL[r]||RARITY_COL.common; }
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
 
 // In-app purchases. Ids must match the products you create in Google Play / App Store.
 const IAP_PRODUCTS = {
@@ -535,6 +547,7 @@ const IAP_PRODUCTS = {
   coins1000:  {name:'1,000 Coins',   price:'$0.99', coins:1000},
   coins6000:  {name:'6,000 Coins',   price:'$3.99', coins:6000, badge:'Best value'},
   skin_aurora:{name:'Aurora Skin',   price:'$1.49', desc:'Exclusive glowing skin'},
+  starter:    {name:'Starter Pack',  price:'$0.99', desc:'1,500 coins + Cobalt skin'},
 };
 
 // ---------- Localization (EN / RU) ----------
@@ -587,6 +600,10 @@ const STRINGS = {
     readyIn:'Ready in', comeBackTomorrow:'Come back tomorrow', claimed:'Claimed ✓',
     weeklyMission:'Weekly mission', weeklyDoneMsg:'Weekly done!',
     ratePrompt:'Enjoying Snake? Rate us on the store ⭐',
+    zen:'Zen', zenD:'Relax · no walls, no game over',
+    starterPack:'Starter Pack', starterDesc:'1,500 coins + Cobalt skin, 50% off', endsIn:'ends in',
+    rarCommon:'Common', rarRare:'Rare', rarEpic:'Epic', rarPremium:'Premium',
+    newRecord:'🎉 New record!',
   },
   ru: {
     premiumEdition:'Премиум-издание', best:'Рекорд', coins:'Монеты', streak:'Серия',
@@ -636,6 +653,10 @@ const STRINGS = {
     readyIn:'Готово через', comeBackTomorrow:'Заходи завтра', claimed:'Забрано ✓',
     weeklyMission:'Задание недели', weeklyDoneMsg:'Задание недели выполнено!',
     ratePrompt:'Нравится Snake? Оцени нас в сторе ⭐',
+    zen:'Дзен', zenD:'Расслабься · без стен, без проигрыша',
+    starterPack:'Стартовый набор', starterDesc:'1 500 монет + скин Cobalt, −50%', endsIn:'осталось',
+    rarCommon:'Обычный', rarRare:'Редкий', rarEpic:'Эпический', rarPremium:'Премиум',
+    newRecord:'🎉 Новый рекорд!',
   },
 };
 let L = STRINGS.en;
@@ -729,9 +750,12 @@ const G = {
   bestComboRun:0,
   powerup:null, x2Until:0, shieldUntil:0, magnetUntil:0,
   timeLeft:0, theme:'default', premium:false, lang:'en',
+  floats:[], shakeUntil:0, shakeMag:0, beatHigh:false, starterStart:0,
 };
 function hasObstacles(){ return G.mode==='obstacles' || G.mode==='hardcore'; }
-function wrapWalls(){ return G.mode==='classic' || G.mode==='timeattack'; }
+function wrapWalls(){ return G.mode==='classic' || G.mode==='timeattack' || G.mode==='zen'; }
+function zenMode(){ return G.mode==='zen'; }
+function shake(m,ms){ G.shakeMag=m; G.shakeUntil=performance.now()+ms; }
 function shieldOn(){ return performance.now()<G.shieldUntil; }
 function x2On(){ return performance.now()<G.x2Until; }
 function magnetOn(){ return performance.now()<G.magnetUntil; }
@@ -922,6 +946,7 @@ function startGame(mode){
   G.particles=[]; G.notes=[]; G.playMs=0; G.slowUntil=0; G.bestComboRun=0;
   G.powerup=null; G.x2Until=0; G.shieldUntil=0; G.magnetUntil=0;
   G.revived=false; G.earnedThisRun=0;
+  G.floats=[]; G.shakeUntil=0; G.beatHigh=false;
   G.timeLeft = mode==='timeattack' ? 60000 : 0;
   G.over=false; G.paused=false; G.running=true;
   G.stepMs=BASE_STEP; G.stepAcc=0;
@@ -977,8 +1002,8 @@ function step(){
   if(wrapWalls() || ghost){
     nx=(nx+GRID)%GRID; ny=(ny+GRID)%GRID;
   } else if(nx<0||nx>=GRID||ny<0||ny>=GRID){ gameOver(); return; }
-  // Self / obstacle collisions (ignored while shielded)
-  if(!ghost){
+  // Self / obstacle collisions (ignored while shielded; in Zen you pass through)
+  if(!ghost && !zenMode()){
     if(G.snake.some(s=>s.x===nx&&s.y===ny)){ gameOver(); return; }
     if(hasObstacles() && G.obstacles.some(o=>o.x===nx&&o.y===ny)){ gameOver(); return; }
   }
@@ -999,6 +1024,7 @@ function step(){
 
 // Eat the current food (from a grid pickup OR a magnet fly-in) and spawn the next.
 function eatFood(){
+  const prevLevel=G.level;
   G.combo++; G.comboEnd=performance.now()+COMBO_TIME;
   if(G.combo>G.bestComboRun) G.bestComboRun=G.combo;
   if(G.combo>=5) unlock('combo_master');
@@ -1008,16 +1034,29 @@ function eatFood(){
   if(G.food.type==='bonus'){ pts=30; col=COL.purple; cnt=16; Sound.bonus(); vibe([10,20,10]); }
   else if(G.food.type==='slow'){ pts=15; col=COL.cyan; cnt=12; G.slowUntil=performance.now()+3500; Sound.slow(); vibe(20); }
   else { Sound.eat(); vibe(12); }
-  G.score+=Math.floor(pts*mult); G.grow++;
+  const addPts=Math.floor(pts*mult);
+  G.score+=addPts; G.grow++;
   const fx=(G.food.fx!=null?G.food.fx:G.food.x), fy=(G.food.fy!=null?G.food.fy:G.food.y);
   burst((fx+0.5)*G.cell, (fy+0.5)*G.cell, col, cnt);
+  G.floats.push({x:(fx+0.5)*G.cell, y:(fy+0.2)*G.cell, text:'+'+addPts, life:1, color:col});
+  if(G.floats.length>14) G.floats.shift();
   if(G.score>=10) unlock('first_score');
   if(G.score>=100) unlock('score_100');
   G.level=1+Math.floor(G.score/50);
   if(G.level>=5) unlock('level_5');
+  if(G.level>prevLevel){ notify('⭐ '+t('level')+' '+G.level, COL.blue); if(!G.settings.motion) shake(4,180); }
+  // "New record" celebration mid-run (Zen updates the high silently instead)
+  if(zenMode()){
+    if(G.score>G.high){ G.high=G.score; store.set('high',G.high); }
+  } else if(!G.beatHigh && G.high>0 && G.score>G.high){
+    G.beatHigh=true; notify(t('newRecord'), COL.yellow); Sound.ach();
+    const h=G.snake[0]; burst((h.x+0.5)*G.cell,(h.y+0.5)*G.cell, COL.yellow, 22);
+    if(!G.settings.motion) shake(6,300);
+  }
   spawnFood();
   if(!G.powerup && Math.random()<0.16) spawnPowerup();
-  checkDaily(); checkWeekly(); updateHUD();
+  if(!zenMode()){ checkDaily(); checkWeekly(); }
+  updateHUD();
 }
 
 function update(dt){
@@ -1032,9 +1071,9 @@ function update(dt){
   // power-up lifetime on the board
   if(G.powerup){ G.powerup.life-=dt; if(G.powerup.life<=0) G.powerup=null; }
   // step speed
-  let base=BASE_STEP-(G.level-1)*11;
-  if(G.mode==='hardcore') base-=35;
-  let stepMs=Math.max(MIN_STEP, base);
+  let stepMs;
+  if(zenMode()){ stepMs=ZEN_STEP; }
+  else { let base=BASE_STEP-(G.level-1)*11; if(G.mode==='hardcore') base-=35; stepMs=Math.max(MIN_STEP, base); }
   if(performance.now()<G.slowUntil) stepMs*=SLOW_FACTOR;
   G.stepMs=stepMs;
   G.stepAcc+=dt;
@@ -1052,6 +1091,9 @@ function update(dt){
   // particles
   for(const p of G.particles){ p.x+=p.vx; p.y+=p.vy; p.vx*=.96; p.vy*=.96; p.life-=dt/700; p.size*=.985; }
   G.particles=G.particles.filter(p=>p.life>0);
+  // floating score popups rise and fade
+  for(const f of G.floats){ f.y-=dt*0.045; f.life-=dt/850; }
+  G.floats=G.floats.filter(f=>f.life>0);
 }
 
 // ---------- Rendering ----------
@@ -1189,13 +1231,30 @@ function drawPowerup(){
 }
 function render(t){
   drawBackground();
+  // Screen shake (skipped when "reduced motion" is on). Background is drawn first,
+  // untranslated, so shaking the scene never exposes the canvas edges.
+  let sh=false;
+  if(!G.settings.motion && performance.now()<G.shakeUntil){
+    const m=G.shakeMag; ctx.save(); ctx.translate((Math.random()-.5)*m,(Math.random()-.5)*m); sh=true;
+  }
   if(!G.over && G.running){
     for(const o of G.obstacles) drawObstacle(o);
     drawFood();
     drawPowerup();
     drawSnake(t);
     drawParticles();
+    drawFloats();
   }
+  if(sh) ctx.restore();
+}
+function drawFloats(){
+  if(!G.floats.length) return;
+  ctx.textAlign='center'; ctx.font='bold '+Math.floor(G.cell*0.62)+'px -apple-system,Segoe UI,Arial';
+  for(const f of G.floats){
+    ctx.globalAlpha=Math.max(0,Math.min(1,f.life));
+    ctx.fillStyle=f.color; ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.globalAlpha=1; ctx.textAlign='start';
 }
 
 // ---------- HUD ----------
@@ -1215,7 +1274,7 @@ function applyLang(lang){
   // Menu
   document.querySelectorAll('.brand-sub').forEach(e=>{ if(!/v\d/.test(e.textContent)) e.textContent=t('premiumEdition'); });
   const ms=document.querySelectorAll('.mstat small'); if(ms[0])ms[0].textContent=t('best'); if(ms[1])ms[1].textContent=t('coins'); if(ms[2])ms[2].textContent=t('streak');
-  const modes={classic:['classic','classicD'],obstacles:['obstacles','obstaclesD'],hardcore:['hardcore','hardcoreD'],timeattack:['timeattack','timeattackD']};
+  const modes={classic:['classic','classicD'],obstacles:['obstacles','obstaclesD'],hardcore:['hardcore','hardcoreD'],timeattack:['timeattack','timeattackD'],zen:['zen','zenD']};
   document.querySelectorAll('[data-mode]').forEach(b=>{ const m=modes[b.dataset.mode]; if(m){ const bb=b.querySelector('.mtext b'), sm=b.querySelector('.mtext small'); if(bb)bb.textContent=t(m[0]); if(sm)sm.textContent=t(m[1]); }});
   set('menuShop',t('shop')); set('menuStats',t('stats')); set('menuSettings',t('settings')); set('btnInstall',t('installApp'));
   const mh=document.getElementById('menuAbout'); if(mh){ mh.parentNode.childNodes[0].nodeValue=t('hint'); mh.textContent=t('about'); }
@@ -1349,6 +1408,9 @@ function grantPurchase(id){
   else if(id==='coins6000'){ G.currency+=6000; store.set('currency',G.currency); }
   else if(id==='skin_aurora'){ G.skinsUnlocked['aurora']=true; G.currentSkin='aurora';
     store.set('unlocked',G.skinsUnlocked); store.set('skin','aurora'); }
+  else if(id==='starter'){ G.currency+=1500; store.set('currency',G.currency);
+    G.skinsUnlocked['cobalt']=true; store.set('unlocked',G.skinsUnlocked);
+    store.set('starterBought',true); }
   Sound.buy(); vibe(25);
   notify('✓ '+((IAP_PRODUCTS[id]||{}).name||'Purchased'), COL.green);
   updateHUD(); refreshMenu();
@@ -1443,10 +1505,20 @@ function maybeRatePrompt(){
 }
 
 // ---------- Shop ----------
+function starterActive(){ return !G.premium && !store.get('starterBought',false) && (Date.now()-G.starterStart < STARTER_DURATION); }
 function renderShop(){
   document.getElementById('shopCoins').textContent='🪙 '+G.currency+' coins';
   // --- IAP section (premium / remove ads / coin packs) ---
   const ex=document.getElementById('storeExtras'); ex.innerHTML='';
+  // Limited-time starter offer (first 48h, non-premium, once)
+  if(starterActive()){
+    const left=STARTER_DURATION-(Date.now()-G.starterStart);
+    const b=document.createElement('div'); b.className='store-banner';
+    b.style.background='linear-gradient(135deg,rgba(231,76,60,.32),rgba(241,196,15,.32))';
+    b.innerHTML='<div class="sb-title">🔥 '+t('starterPack')+'</div><div class="sb-desc">'+t('starterDesc')+' · '+t('endsIn')+' '+fmtDur(left)+'</div>';
+    const buy=document.createElement('button'); buy.className='primary'; buy.textContent=IAP_PRODUCTS.starter.price;
+    buy.onclick=()=>IAP.purchase('starter'); b.appendChild(buy); ex.appendChild(b);
+  }
   if(!G.premium){
     const p=IAP_PRODUCTS.premium;
     const b=document.createElement('div'); b.className='store-banner';
@@ -1472,7 +1544,8 @@ function renderShop(){
       : sk.iap?'linear-gradient(135deg,#3affc8,#3a8dff)'
       : sk.premium?'linear-gradient(135deg,#8a7dff,#c86bff)' : sk.color;
     const name=document.createElement('div'); name.className='name';
-    name.innerHTML=sk.name+((sk.premium||sk.iap)?' <span class="tag" style="color:var(--accent)">★</span>':'');
+    const rar=sk.rarity||'common';
+    name.innerHTML=sk.name+' <span class="tag" style="color:'+rarityColor(rar)+';font-size:11px">'+t('rar'+cap(rar))+'</span>'+((sk.premium||sk.iap)?' <span class="tag" style="color:var(--accent)">★</span>':'');
     const btn=document.createElement('button');
     if(eq){ btn.textContent=t('equipped'); btn.disabled=true; btn.classList.add('tag'); }
     else if(owned){ btn.textContent=t('equip'); btn.onclick=()=>{ G.currentSkin=id; store.set('skin',id); Sound.eat(); renderShop(); }; }
@@ -1594,7 +1667,7 @@ document.getElementById('setTheme').onclick=()=>{ const i=(THEME_KEYS.indexOf(G.
 document.getElementById('setLang').onclick=()=>{ applyLang(G.lang==='ru'?'en':'ru'); Sound.eat(); };
 document.getElementById('setReset').onclick=()=>{
   if(confirm('Reset all progress (high score, coins, skins, stats)?')){
-    ['high','currency','unlocked','skin','ach','daily','settings','stats','reward','scores','noads','theme','premium','seenIntro','lang','freeCoins','weekly','dailyBonus','rated'].forEach(k=>{try{localStorage.removeItem('snake_'+k);}catch(e){}});
+    ['high','currency','unlocked','skin','ach','daily','settings','stats','reward','scores','noads','theme','premium','seenIntro','lang','freeCoins','weekly','dailyBonus','rated','starterStart','starterBought'].forEach(k=>{try{localStorage.removeItem('snake_'+k);}catch(e){}});
     location.reload();
   }
 };
@@ -1705,6 +1778,8 @@ function load(){
   G.lang=store.get('lang', null) || ((navigator.language||'en').toLowerCase().indexOf('ru')===0?'ru':'en');
   applyTheme(store.get('theme','default'));
   Sound.enabled=G.settings.sound;
+  G.starterStart = store.get('starterStart', 0);
+  if(!G.starterStart){ G.starterStart=Date.now(); store.set('starterStart', G.starterStart); }
   loadDaily(); loadWeekly();
 }
 load(); resize(); updateHUD(); refreshMenu(); showGameUI(false); applyLang(G.lang);
