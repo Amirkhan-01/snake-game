@@ -555,6 +555,8 @@ const SKINS = {
   rainbow:{name:'Rainbow', color:null, price:500, rainbow:true, rarity:'epic'},
   spectrum:{name:'Spectrum', color:'#8affff', price:600, rarity:'epic', anim:'spectrum'},
   inferno: {name:'Inferno',  color:'#ff3b3b', price:600, rarity:'epic', anim:'inferno'},
+  celestial:{name:'Celestial', color:'#c8b6ff', gemPrice:20, rarity:'premium', anim:'spectrum'},
+  prism:    {name:'Prism',     color:'#b6fff0', gemPrice:25, rarity:'premium', anim:'inferno'},
   // Premium skins (real-money): galaxy comes with Full Version, aurora is a direct purchase.
   galaxy: {name:'Galaxy',  color:'#8a7dff', premium:true, rarity:'premium'},
   aurora: {name:'Aurora',  color:'#3affc8', iap:'skin_aurora', iapPrice:'$1.49', rarity:'premium'},
@@ -585,6 +587,9 @@ const IAP_PRODUCTS = {
   coins6000:  {name:'6,000 Coins',   price:'$3.99', coins:6000, badge:'Best value'},
   skin_aurora:{name:'Aurora Skin',   price:'$1.49', desc:'Exclusive glowing skin'},
   starter:    {name:'Starter Pack',  price:'$0.99', desc:'1,500 coins + Cobalt skin'},
+  doubler:    {name:'Coin Doubler',  price:'$2.99', desc:'Permanently earn 2× coins'},
+  gems_50:    {name:'50 Gems',       price:'$1.99', gems:50},
+  gems_150:   {name:'150 Gems',      price:'$4.99', gems:150, badge:'Best value'},
 };
 
 // ---------- Localization (EN / RU) ----------
@@ -643,6 +648,7 @@ const STRINGS = {
     newRecord:'🎉 New record!',
     accLevel:'Account level', weekBest:'This week best', beatWeek:'Beat last week!',
     foodSection:'Food', framesSection:'Frames', notEnough:'Not enough coins',
+    dailyDeal:'Daily Deal', notEnoughGems:'Not enough gems', adUpsell:'Tired of ads? Remove them in the Shop 🛍',
   },
   ru: {
     premiumEdition:'Премиум-издание', best:'Рекорд', coins:'Монеты', streak:'Серия',
@@ -698,6 +704,7 @@ const STRINGS = {
     newRecord:'🎉 Новый рекорд!',
     accLevel:'Уровень аккаунта', weekBest:'Лучшее за неделю', beatWeek:'Побит рекорд недели!',
     foodSection:'Еда', framesSection:'Рамки', notEnough:'Недостаточно монет',
+    dailyDeal:'Скидка дня', notEnoughGems:'Недостаточно гемов', adUpsell:'Устал от рекламы? Убери её в Магазине 🛍',
   },
 };
 let L = STRINGS.en;
@@ -801,6 +808,7 @@ const G = {
   timeLeft:0, theme:'default', premium:false, lang:'en',
   floats:[], shakeUntil:0, shakeMag:0, beatHigh:false, starterStart:0,
   foodSel:'classic', foodUnlocked:{classic:true}, frameSel:'none', frameUnlocked:{none:true},
+  coinMult:1, gems:0,
 };
 function hasObstacles(){ return G.mode==='obstacles' || G.mode==='hardcore'; }
 function wrapWalls(){ return G.mode==='classic' || G.mode==='timeattack' || G.mode==='zen'; }
@@ -1019,7 +1027,7 @@ function gameOver(){
   G.over=true; G.running=false; Sound.over(); vibe(140); Music.stop();
   if(G.score>G.high){ G.high=G.score; store.set('high',G.high); }
   // Earn coins from this run (hardcore pays 1.5x)
-  const earned=Math.floor(G.score/10 * (G.mode==='hardcore'?1.5:1));
+  const earned=Math.floor(G.score/10 * (G.mode==='hardcore'?1.5:1) * G.coinMult);
   if(earned>0){ G.currency+=earned; store.set('currency',G.currency); }
   // Update lifetime stats
   const st=G.stats;
@@ -1028,7 +1036,7 @@ function gameOver(){
   if(G.bestComboRun>st.combo) st.combo=G.bestComboRun;
   store.set('stats', st);
   const newAcc=accountLevel(st.total);
-  if(newAcc>prevAcc){ const rw=50*newAcc; G.currency+=rw; store.set('currency',G.currency); notify('⭐ '+t('accLevel')+' '+newAcc+' +'+rw+' 🪙', COL.blue); Sound.ach(); }
+  if(newAcc>prevAcc){ const rw=50*newAcc; G.currency+=rw; G.gems+=1; store.set('currency',G.currency); store.set('gems',G.gems); notify('⭐ '+t('accLevel')+' '+newAcc+' +'+rw+' 🪙 +1 💎', COL.blue); Sound.ach(); }
   if(st.games>=50) unlock('marathon');
   maybeRatePrompt();
   // Local leaderboard (top 10)
@@ -1037,7 +1045,7 @@ function gameOver(){
     let w=store.get('weekScores',null);
     if(!w || w.week!==weekKey()) w={week:weekKey(), best:0, last:(w?w.best:0)||0, beat:false};
     if(G.score>w.best) w.best=G.score;
-    if(!w.beat && w.last>0 && G.score>w.last){ w.beat=true; G.currency+=300; store.set('currency',G.currency); notify('🏆 '+t('beatWeek')+' +300 🪙', COL.green); Sound.ach(); }
+    if(!w.beat && w.last>0 && G.score>w.last){ w.beat=true; G.currency+=300; G.gems+=2; store.set('currency',G.currency); store.set('gems',G.gems); notify('🏆 '+t('beatWeek')+' +300 🪙 +2 💎', COL.green); Sound.ach(); }
     store.set('weekScores', w);
   }
   document.getElementById('goScore').textContent=G.score;
@@ -1517,6 +1525,9 @@ function grantPurchase(id){
   else if(id==='starter'){ G.currency+=1500; store.set('currency',G.currency);
     G.skinsUnlocked['cobalt']=true; store.set('unlocked',G.skinsUnlocked);
     store.set('starterBought',true); }
+  else if(id==='doubler'){ G.coinMult=2; store.set('doubler',true); }
+  else if(id==='gems_50'){ G.gems+=50; store.set('gems',G.gems); }
+  else if(id==='gems_150'){ G.gems+=150; store.set('gems',G.gems); }
   checkCollector();
   Sound.buy(); vibe(25);
   notify('✓ '+((IAP_PRODUCTS[id]||{}).name||'Purchased'), COL.green);
@@ -1540,15 +1551,19 @@ const IAP = { purchase(id){
 // Google's policy: only at natural breaks, never mid-game, never for ad-free users.
 const INTERSTITIAL_EVERY = 3;        // show at most every Nth replay
 const INTERSTITIAL_GAP_MS = 90000;   // ...and never more often than this
-let _gamesSinceAd = 0, _lastInterstitial = 0;
+let _gamesSinceAd = 0, _lastInterstitial = 0, _interstitialCount = 0, _upsellShown = false;
+function maybeAdUpsell(){
+  if(_upsellShown || Ads.removed || G.premium || _interstitialCount<2) return;
+  _upsellShown=true; notify(t('adUpsell'), COL.blue);
+}
 function maybeInterstitial(next){
   const N = window.SnakeNative;
   if(Ads.removed || !N || !N.isNative){ next(); return; }   // paid users & web: straight through
   _gamesSinceAd++;
   const now = performance.now();
   if(_gamesSinceAd < INTERSTITIAL_EVERY || (now - _lastInterstitial) < INTERSTITIAL_GAP_MS){ next(); return; }
-  _gamesSinceAd = 0; _lastInterstitial = now;
-  Promise.resolve(N.showInterstitial()).then(next).catch(next);
+  _gamesSinceAd = 0; _lastInterstitial = now; _interstitialCount++;
+  Promise.resolve(N.showInterstitial()).then(()=>{ maybeAdUpsell(); next(); }).catch(next);
 }
 
 function revive(){
@@ -1638,7 +1653,7 @@ function renderCosmeticList(cid, DATA, un, getSel, setSel, unStoreKey){
 // ---------- Shop ----------
 function starterActive(){ return !G.premium && !store.get('starterBought',false) && (Date.now()-G.starterStart < STARTER_DURATION); }
 function renderShop(){
-  document.getElementById('shopCoins').textContent='🪙 '+G.currency+' coins';
+  document.getElementById('shopCoins').textContent='🪙 '+G.currency+'  ·  💎 '+G.gems;
   // --- IAP section (premium / remove ads / coin packs) ---
   const ex=document.getElementById('storeExtras'); ex.innerHTML='';
   // Limited-time starter offer (first 48h, non-premium, once)
@@ -1649,6 +1664,15 @@ function renderShop(){
     b.innerHTML='<div class="sb-title">🔥 '+t('starterPack')+'</div><div class="sb-desc">'+t('starterDesc')+' · '+t('endsIn')+' '+fmtDur(left)+'</div>';
     const buy=document.createElement('button'); buy.className='primary'; buy.textContent=IAP_PRODUCTS.starter.price;
     buy.onclick=()=>IAP.purchase('starter'); b.appendChild(buy); ex.appendChild(b);
+  }
+  const _deal=dailyDealId();
+  if(_deal && !G.skinsUnlocked[_deal]){
+    const sk=SKINS[_deal], dp=Math.floor(sk.price*0.6);
+    const b=document.createElement('div'); b.className='store-banner';
+    b.style.background='linear-gradient(135deg,rgba(46,204,113,.28),rgba(52,152,219,.28))';
+    b.innerHTML='<div class="sb-title">🏷️ '+t('dailyDeal')+': '+sk.name+'</div><div class="sb-desc"><s>🪙 '+sk.price+'</s> → 🪙 '+dp+' (-40%)</div>';
+    const buy=document.createElement('button'); buy.className='primary'; buy.textContent='🪙 '+dp;
+    buy.onclick=()=>buySkinAt(_deal,dp); b.appendChild(buy); ex.appendChild(b);
   }
   if(!G.premium){
     const p=IAP_PRODUCTS.premium;
@@ -1665,6 +1689,9 @@ function renderShop(){
   }
   ex.appendChild(iapRow('coins1000'));
   ex.appendChild(iapRow('coins6000'));
+  if(G.coinMult<2) ex.appendChild(iapRow('doubler'));
+  ex.appendChild(iapRow('gems_50'));
+  ex.appendChild(iapRow('gems_150'));
   // --- Skins ---
   const list=document.getElementById('shopList'); list.innerHTML='';
   for(const id in SKINS){
@@ -1682,6 +1709,7 @@ function renderShop(){
     else if(owned){ btn.textContent=t('equip'); btn.onclick=()=>{ G.currentSkin=id; store.set('skin',id); Sound.eat(); renderShop(); }; }
     else if(sk.iap){ btn.textContent=sk.iapPrice; btn.onclick=()=>IAP.purchase(sk.iap); }
     else if(sk.premium){ btn.textContent='Full Version'; btn.onclick=()=>IAP.purchase('premium'); }
+    else if(sk.gemPrice){ btn.textContent='💎 '+sk.gemPrice; btn.onclick=()=>buyGemSkin(id); }
     else { btn.textContent='🪙 '+sk.price; btn.onclick=()=>buySkin(id); }
     row.append(sw,name,btn); list.appendChild(row);
   }
@@ -1699,6 +1727,21 @@ function iapRow(id){
   row.append(name,btn); return row;
 }
 function checkCollector(){ if(Object.keys(G.skinsUnlocked).length>=5) unlock('collector'); }
+function dailyDealId(){ const coin=Object.keys(SKINS).filter(k=>SKINS[k].price>0); return coin[Math.floor(Date.now()/86400000)%coin.length]; }
+function buySkinAt(id, price){
+  const sk=SKINS[id];
+  if(G.currency>=price){ G.currency-=price; G.skinsUnlocked[id]=true; G.currentSkin=id;
+    store.set('currency',G.currency); store.set('unlocked',G.skinsUnlocked); store.set('skin',id);
+    Sound.buy(); notify('Unlocked '+sk.name+'!', COL.green); updateHUD(); checkCollector(); renderShop(); }
+  else { Sound.denied(); notify(t('notEnough'), COL.red); }
+}
+function buyGemSkin(id){
+  const sk=SKINS[id];
+  if(G.gems>=sk.gemPrice){ G.gems-=sk.gemPrice; G.skinsUnlocked[id]=true; G.currentSkin=id;
+    store.set('gems',G.gems); store.set('unlocked',G.skinsUnlocked); store.set('skin',id);
+    Sound.buy(); notify('Unlocked '+sk.name+'!', COL.green); updateHUD(); renderShop(); }
+  else { Sound.denied(); notify(t('notEnoughGems'), COL.red); }
+}
 function buySkin(id){
   const sk=SKINS[id];
   if(G.currency>=sk.price){
@@ -1802,7 +1845,7 @@ document.getElementById('setTheme').onclick=()=>{ const i=(THEME_KEYS.indexOf(G.
 document.getElementById('setLang').onclick=()=>{ applyLang(G.lang==='ru'?'en':'ru'); Sound.eat(); };
 document.getElementById('setReset').onclick=()=>{
   if(confirm('Reset all progress (high score, coins, skins, stats)?')){
-    ['high','currency','unlocked','skin','ach','daily','settings','stats','reward','scores','noads','theme','premium','seenIntro','lang','freeCoins','weekly','dailyBonus','rated','starterStart','starterBought','weekScores','foodSel','foodUnlocked','frameSel','frameUnlocked'].forEach(k=>{try{localStorage.removeItem('snake_'+k);}catch(e){}});
+    ['high','currency','unlocked','skin','ach','daily','settings','stats','reward','scores','noads','theme','premium','seenIntro','lang','freeCoins','weekly','dailyBonus','rated','starterStart','starterBought','weekScores','foodSel','foodUnlocked','frameSel','frameUnlocked','doubler','gems'].forEach(k=>{try{localStorage.removeItem('snake_'+k);}catch(e){}});
     location.reload();
   }
 };
@@ -1927,6 +1970,8 @@ function load(){
   G.foodSel=store.get('foodSel','classic'); G.foodUnlocked=Object.assign({classic:true}, store.get('foodUnlocked',{}));
   G.frameSel=store.get('frameSel','none'); G.frameUnlocked=Object.assign({none:true}, store.get('frameUnlocked',{}));
   applyFrame(G.frameSel);
+  G.coinMult = store.get('doubler',false)?2:1;
+  G.gems = store.get('gems',0);
   loadDaily(); loadWeekly();
 }
 load(); resize(); updateHUD(); refreshMenu(); showGameUI(false); applyLang(G.lang);
