@@ -196,6 +196,10 @@
   ::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#7aa2ff,#9b7bff);background-clip:padding-box}
   ::-webkit-scrollbar-button{display:none;width:0;height:0}
   ::-webkit-scrollbar-corner{background:transparent}
+  #comboBar{position:absolute;top:calc(70px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+    width:130px;height:6px;border-radius:99px;background:rgba(255,255,255,.14);z-index:4;overflow:hidden;
+    display:none;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+  #comboFill{height:100%;width:100%;border-radius:99px;background:var(--orange)}
 </style>
 </head>
 <body>
@@ -217,6 +221,7 @@
   </div>
 
   <div id="notes"></div>
+  <div id="comboBar"><div id="comboFill"></div></div>
   <canvas id="board"></canvas>
   <div id="hint"></div>
 
@@ -306,6 +311,8 @@
       <div class="stat"><span>Score</span><b id="goScore">0</b></div>
       <div class="stat"><span>High score</span><b id="goHi">0</b></div>
       <div class="stat"><span>Level reached</span><b id="goLevel">1</b></div>
+      <div class="stat"><span>Best combo</span><b id="goCombo">0</b></div>
+      <div class="stat"><span>Coins earned</span><b id="goCoins">🪙 0</b></div>
       <div class="row" id="rowRevive"><button class="primary" id="btnRevive" style="width:100%;background:linear-gradient(135deg,#2ecc71,#27ae60)">▶ Continue — watch ad</button></div>
       <div class="row" id="rowX2"><button id="btnX2" style="width:100%">🪙 Double coins — watch ad</button></div>
       <div class="row"><button class="primary" id="btnAgain">Play again</button>
@@ -370,6 +377,8 @@
       <div class="stat"><span>Best combo</span><b id="stCombo">0</b></div>
       <div class="stat"><span>Coins earned</span><b id="stCoins">0</b></div>
       <div class="stat"><span>Time played</span><b id="stTime">0m</b></div>
+      <div class="stat"><span>Account level</span><b id="stAcc">Lv 1</b></div>
+      <div class="stat"><span>This week best</span><b id="stWeek">0</b></div>
       <h1 style="margin-top:18px">🥇 Top Scores</h1>
       <ol id="lbList" class="lb"></ol>
       <h1 style="margin-top:18px">🏆 Achievements</h1>
@@ -604,6 +613,7 @@ const STRINGS = {
     starterPack:'Starter Pack', starterDesc:'1,500 coins + Cobalt skin, 50% off', endsIn:'ends in',
     rarCommon:'Common', rarRare:'Rare', rarEpic:'Epic', rarPremium:'Premium',
     newRecord:'🎉 New record!',
+    accLevel:'Account level', weekBest:'This week best', beatWeek:'Beat last week!',
   },
   ru: {
     premiumEdition:'Премиум-издание', best:'Рекорд', coins:'Монеты', streak:'Серия',
@@ -657,17 +667,24 @@ const STRINGS = {
     starterPack:'Стартовый набор', starterDesc:'1 500 монет + скин Cobalt, −50%', endsIn:'осталось',
     rarCommon:'Обычный', rarRare:'Редкий', rarEpic:'Эпический', rarPremium:'Премиум',
     newRecord:'🎉 Новый рекорд!',
+    accLevel:'Уровень аккаунта', weekBest:'Лучшее за неделю', beatWeek:'Побит рекорд недели!',
   },
 };
 let L = STRINGS.en;
 function t(k){ return (L[k]!=null)?L[k]:(STRINGS.en[k]!=null?STRINGS.en[k]:k); }
 
 const ACH = {
-  first_score:{name:'First Blood', desc:'Score 10'},
-  combo_master:{name:'Combo Master', desc:'Reach 5x combo'},
-  level_5:{name:'Rising Star', desc:'Reach level 5'},
-  score_100:{name:'Century', desc:'Score 100'},
-  survivor:{name:'Survivor', desc:'Play 2 minutes'},
+  first_score:{name:'First Blood', desc:'Score 10', reward:20},
+  combo_master:{name:'Combo Master', desc:'Reach 5x combo', reward:40},
+  level_5:{name:'Rising Star', desc:'Reach level 5', reward:40},
+  score_100:{name:'Century', desc:'Score 100', reward:60},
+  survivor:{name:'Survivor', desc:'Play 2 minutes', reward:60},
+  score_250:{name:'High Roller', desc:'Score 250 in a run', reward:100},
+  level_10:{name:'Veteran', desc:'Reach level 10', reward:120},
+  combo_10:{name:'Combo King', desc:'Reach 10x combo', reward:120},
+  bonus_25:{name:'Bonus Hunter', desc:'Eat 25 bonus foods', reward:120},
+  collector:{name:'Collector', desc:'Own 5 skins', reward:150},
+  marathon:{name:'Marathon', desc:'Play 50 games', reward:200},
 };
 
 const CHALLENGES = [
@@ -746,7 +763,7 @@ const G = {
   currency:0, currentSkin:'classic', skinsUnlocked:{classic:true},
   settings:{sound:true, music:false, haptics:true, motion:false, trail:false, swipe:'med'},
   achievements:{}, daily:null, dailyDone:false,
-  stats:{games:0, total:0, combo:0, coins:0, time:0},
+  stats:{games:0, total:0, combo:0, coins:0, time:0, bonus:0},
   bestComboRun:0,
   powerup:null, x2Until:0, shieldUntil:0, magnetUntil:0,
   timeLeft:0, theme:'default', premium:false, lang:'en',
@@ -756,6 +773,8 @@ function hasObstacles(){ return G.mode==='obstacles' || G.mode==='hardcore'; }
 function wrapWalls(){ return G.mode==='classic' || G.mode==='timeattack' || G.mode==='zen'; }
 function zenMode(){ return G.mode==='zen'; }
 function shake(m,ms){ G.shakeMag=m; G.shakeUntil=performance.now()+ms; }
+function accountLevel(xp){ let L=1; while(xp>=500*L*L) L++; return L; }
+function xpToNext(xp){ const L=accountLevel(xp); return 500*L*L-xp; }
 function shieldOn(){ return performance.now()<G.shieldUntil; }
 function x2On(){ return performance.now()<G.x2Until; }
 function magnetOn(){ return performance.now()<G.magnetUntil; }
@@ -878,9 +897,12 @@ function tickNotes(){
 
 // ---------- Achievements / daily ----------
 function unlock(id){
-  if(G.achievements[id]) return;
+  if(G.achievements[id] || !ACH[id]) return;
   G.achievements[id]=true; store.set('ach', G.achievements);
-  notify('🏆 '+ACH[id].name, COL.yellow); Sound.ach();
+  const rw=ACH[id].reward||0;
+  if(rw){ G.currency+=rw; store.set('currency',G.currency); }
+  notify('🏆 '+ACH[id].name+(rw?' +'+rw+' 🪙':''), COL.yellow); Sound.ach();
+  updateHUD();
 }
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
 function loadDaily(){
@@ -965,15 +987,28 @@ function gameOver(){
   if(earned>0){ G.currency+=earned; store.set('currency',G.currency); }
   // Update lifetime stats
   const st=G.stats;
+  const prevAcc=accountLevel(st.total);
   st.games++; st.total+=G.score; st.coins+=earned; st.time+=G.playMs;
   if(G.bestComboRun>st.combo) st.combo=G.bestComboRun;
   store.set('stats', st);
+  const newAcc=accountLevel(st.total);
+  if(newAcc>prevAcc){ const rw=50*newAcc; G.currency+=rw; store.set('currency',G.currency); notify('⭐ '+t('accLevel')+' '+newAcc+' +'+rw+' 🪙', COL.blue); Sound.ach(); }
+  if(st.games>=50) unlock('marathon');
   maybeRatePrompt();
   // Local leaderboard (top 10)
   if(G.score>0){ let lb=store.get('scores',[]); lb.push(G.score); lb.sort((a,b)=>b-a); store.set('scores', lb.slice(0,10)); }
+  if(G.score>0){
+    let w=store.get('weekScores',null);
+    if(!w || w.week!==weekKey()) w={week:weekKey(), best:0, last:(w?w.best:0)||0, beat:false};
+    if(G.score>w.best) w.best=G.score;
+    if(!w.beat && w.last>0 && G.score>w.last){ w.beat=true; G.currency+=300; store.set('currency',G.currency); notify('🏆 '+t('beatWeek')+' +300 🪙', COL.green); Sound.ach(); }
+    store.set('weekScores', w);
+  }
   document.getElementById('goScore').textContent=G.score;
   document.getElementById('goHi').textContent=G.high;
   document.getElementById('goLevel').textContent=G.level;
+  document.getElementById('goCombo').textContent=G.bestComboRun+'x';
+  document.getElementById('goCoins').textContent='🪙 +'+earned;
   G.earnedThisRun=earned;
   const nn=[]; if(G.score>=G.high&&G.score>0) nn.push(t('newHigh'));
   if(earned>0) nn.push('🪙 +'+earned+' '+t('coins').toLowerCase());
@@ -1028,12 +1063,14 @@ function eatFood(){
   G.combo++; G.comboEnd=performance.now()+COMBO_TIME;
   if(G.combo>G.bestComboRun) G.bestComboRun=G.combo;
   if(G.combo>=5) unlock('combo_master');
+  if(G.combo>=10) unlock('combo_10');
   let mult=1+(G.combo-1)*0.1;
   if(x2On()) mult*=2;
   let pts=10, col=COL.red, cnt=8;
   if(G.food.type==='bonus'){ pts=30; col=COL.purple; cnt=16; Sound.bonus(); vibe([10,20,10]); }
   else if(G.food.type==='slow'){ pts=15; col=COL.cyan; cnt=12; G.slowUntil=performance.now()+3500; Sound.slow(); vibe(20); }
   else { Sound.eat(); vibe(12); }
+  if(G.food.type==='bonus'){ G.stats.bonus=(G.stats.bonus||0)+1; store.set('stats',G.stats); if(G.stats.bonus>=25) unlock('bonus_25'); }
   const addPts=Math.floor(pts*mult);
   G.score+=addPts; G.grow++;
   const fx=(G.food.fx!=null?G.food.fx:G.food.x), fy=(G.food.fy!=null?G.food.fy:G.food.y);
@@ -1044,6 +1081,8 @@ function eatFood(){
   if(G.score>=100) unlock('score_100');
   G.level=1+Math.floor(G.score/50);
   if(G.level>=5) unlock('level_5');
+  if(G.score>=250) unlock('score_250');
+  if(G.level>=10) unlock('level_10');
   if(G.level>prevLevel){ notify('⭐ '+t('level')+' '+G.level, COL.blue); if(!G.settings.motion) shake(4,180); }
   // "New record" celebration mid-run (Zen updates the high silently instead)
   if(zenMode()){
@@ -1283,7 +1322,7 @@ function applyLang(lang){
   document.querySelectorAll('#ovPause h1').forEach(e=>e.textContent=t('paused'));
   // Game over
   document.querySelectorAll('#ovOver .go-big').forEach(e=>e.textContent=t('gameOver'));
-  const goStats=document.querySelectorAll('#ovOver .stat span'); if(goStats[0])goStats[0].textContent=t('score'); if(goStats[1])goStats[1].textContent=t('highScore'); if(goStats[2])goStats[2].textContent=t('levelReached');
+  const goStats=document.querySelectorAll('#ovOver .stat span'); if(goStats[0])goStats[0].textContent=t('score'); if(goStats[1])goStats[1].textContent=t('highScore'); if(goStats[2])goStats[2].textContent=t('levelReached'); if(goStats[3])goStats[3].textContent=t('bestCombo'); if(goStats[4])goStats[4].textContent=t('coinsEarned');
   set('btnAgain',t('playAgain')); set('btnOverMenu',t('menu')); set('btnShare',t('shareScore'));
   set('btnRevive',t('continueAd')); set('btnX2',t('doubleAd'));
   // Store static
@@ -1298,7 +1337,7 @@ function applyLang(lang){
   set('btnSetClose',t('close'));
   // Stats
   document.querySelectorAll('#ovStats h1')[0] && (document.querySelectorAll('#ovStats h1')[0].textContent=t('statsTitle'));
-  const stl=document.querySelectorAll('#ovStats .stat span'); const stk=['gamesPlayed','totalScore','bestScore','bestCombo','coinsEarned','timePlayed'];
+  const stl=document.querySelectorAll('#ovStats .stat span'); const stk=['gamesPlayed','totalScore','bestScore','bestCombo','coinsEarned','timePlayed','accLevel','weekBest'];
   stl.forEach((e,i)=>{ if(stk[i]) e.textContent=t(stk[i]); });
   const sh=document.querySelectorAll('#ovStats h1'); if(sh[1])sh[1].textContent=t('topScores'); if(sh[2])sh[2].textContent=t('achievements');
   set('btnStatsClose',t('close'));
@@ -1339,6 +1378,16 @@ function updateEffects(){
     '<span class="fxbadge" style="border-color:'+c+';color:'+c+'">'+ic+' '+Math.ceil((until-now)/1000)+'s</span>'
   ).join('');
 }
+function updateComboBar(){
+  const cb=document.getElementById('comboBar');
+  if(G.running && !G.paused && !G.over && G.combo>1){
+    const frac=Math.max(0,Math.min(1,(G.comboEnd-performance.now())/COMBO_TIME));
+    cb.style.display='block';
+    const fill=document.getElementById('comboFill');
+    fill.style.width=(frac*100)+'%';
+    fill.style.background=G.combo>=8?'#e74c3c':(G.combo>=4?'#e67e22':'#f1c40f');
+  } else if(cb.style.display!=='none'){ cb.style.display='none'; }
+}
 function frame(ts){
   const dt=Math.min(50, ts-(G.lastTs||ts)); G.lastTs=ts;
   update(dt);
@@ -1347,6 +1396,7 @@ function frame(ts){
   document.getElementById('slowmo').textContent = performance.now()<G.slowUntil?'SLOW-MO':'';
   document.getElementById('timer').textContent = (G.mode==='timeattack'&&G.running&&!G.over) ? ('⏱ '+Math.ceil(G.timeLeft/1000)+'s') : '';
   updateEffects();
+  updateComboBar();
   tickNotes();                 // runs in menus/store too, so they never pile up
   requestAnimationFrame(frame);
 }
@@ -1411,6 +1461,7 @@ function grantPurchase(id){
   else if(id==='starter'){ G.currency+=1500; store.set('currency',G.currency);
     G.skinsUnlocked['cobalt']=true; store.set('unlocked',G.skinsUnlocked);
     store.set('starterBought',true); }
+  checkCollector();
   Sound.buy(); vibe(25);
   notify('✓ '+((IAP_PRODUCTS[id]||{}).name||'Purchased'), COL.green);
   updateHUD(); refreshMenu();
@@ -1554,6 +1605,7 @@ function renderShop(){
     else { btn.textContent='🪙 '+sk.price; btn.onclick=()=>buySkin(id); }
     row.append(sw,name,btn); list.appendChild(row);
   }
+  checkCollector();
 }
 function iapRow(id){
   const p=IAP_PRODUCTS[id];
@@ -1564,6 +1616,7 @@ function iapRow(id){
   btn.onclick=()=>IAP.purchase(id);
   row.append(name,btn); return row;
 }
+function checkCollector(){ if(Object.keys(G.skinsUnlocked).length>=5) unlock('collector'); }
 function buySkin(id){
   const sk=SKINS[id];
   if(G.currency>=sk.price){
@@ -1667,7 +1720,7 @@ document.getElementById('setTheme').onclick=()=>{ const i=(THEME_KEYS.indexOf(G.
 document.getElementById('setLang').onclick=()=>{ applyLang(G.lang==='ru'?'en':'ru'); Sound.eat(); };
 document.getElementById('setReset').onclick=()=>{
   if(confirm('Reset all progress (high score, coins, skins, stats)?')){
-    ['high','currency','unlocked','skin','ach','daily','settings','stats','reward','scores','noads','theme','premium','seenIntro','lang','freeCoins','weekly','dailyBonus','rated','starterStart','starterBought'].forEach(k=>{try{localStorage.removeItem('snake_'+k);}catch(e){}});
+    ['high','currency','unlocked','skin','ach','daily','settings','stats','reward','scores','noads','theme','premium','seenIntro','lang','freeCoins','weekly','dailyBonus','rated','starterStart','starterBought','weekScores'].forEach(k=>{try{localStorage.removeItem('snake_'+k);}catch(e){}});
     location.reload();
   }
 };
@@ -1692,6 +1745,9 @@ function renderStats(){
   document.getElementById('stCombo').textContent=st.combo+'x';
   document.getElementById('stCoins').textContent='🪙 '+st.coins;
   document.getElementById('stTime').textContent=Math.floor(st.time/60000)+'m';
+  document.getElementById('stAcc').textContent='Lv '+accountLevel(st.total)+' · '+xpToNext(st.total)+' XP';
+  const _w=store.get('weekScores',null);
+  document.getElementById('stWeek').textContent=(_w&&_w.week===weekKey())?_w.best:0;
   const lb=store.get('scores',[]); const lbEl=document.getElementById('lbList');
   lbEl.innerHTML = lb.length ? lb.map(s=>'<li><span>'+s+'</span></li>').join('')
                              : '<div class="lb-empty">'+t('noScores')+'</div>';
@@ -1772,7 +1828,7 @@ function load(){
   if(!G.skinsUnlocked[G.currentSkin]) G.currentSkin='classic';
   G.achievements=store.get('ach',{});
   G.settings=Object.assign({sound:true,music:false,haptics:true,motion:false,trail:false,swipe:'med'}, store.get('settings',{}));
-  G.stats=Object.assign({games:0,total:0,combo:0,coins:0,time:0}, store.get('stats',{}));
+  G.stats=Object.assign({games:0,total:0,combo:0,coins:0,time:0,bonus:0}, store.get('stats',{}));
   G.premium=store.get('premium', false);
   Ads.removed=store.get('noads', false) || G.premium;
   G.lang=store.get('lang', null) || ((navigator.language||'en').toLowerCase().indexOf('ru')===0?'ru':'en');
